@@ -28,7 +28,7 @@ Rank each user's videos so the ones they'll watch long sit on top. Dataset: Kuai
 
 Their published dead-ends (pre-loaded into LESSONS — never retry): more feature fields (no gain), bigger embeddings (no gain), pure user-side features (mathematically zero effect under within-user ranking).
 Their ranked untried directions, our starting order:
-1. **Ranking-aligned loss** (in-user listwise softmax or pairwise BPR) — their top bet and ours: the metric is a ranking metric, the baseline trains a pointwise classifier.
+1. **Ranking-aligned loss** — refined order per the dual strategy review: pairwise BPR on the existing FM representation first (lowest risk), then the in-user listwise objective; blend/rank-average diverse successes as a standing cheap win. (Their top bet and ours: the metric is a ranking metric, the baseline trains a pointwise classifier.)
 2. **User behavior sequences** (DIN/SIM-style interest modeling) — timestamps exist per interaction; completely unused today.
 3. **Multi-task heads** over the other 11 feedback signals (click, like, play_time_ms, …).
 4. **Watch-time modeling** (censored regression à la CWM, KDD'24).

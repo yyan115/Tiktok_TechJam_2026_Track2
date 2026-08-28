@@ -64,3 +64,11 @@ Adopted into the plan (user-approved):
 Mirror of Track 3's mechanism: Project/tools/best_watch.py (hook-invoked; detects a change in the best FINALIZABLE experiment using the bench's own rule) + Project/tools/audit_best.py (detached blind codex audit of the journal entry incl. full solution source; verdict appended to Project/audits/verdicts.jsonl; digest displays the audit column). Non-blocking; hook added to .claude/settings.json this setup era (disclosed), arms at the user's restart. First real firing: the baseline best's audit launched at build time.
 
 - **16:58 — first auto-audit completed: PASS** on the baseline best experiment (end-to-end with zero agent involvement). Wrapper fixes mirrored from Track 3 (flush-before-hash; wait-for-idle-bench before recording).
+
+## 28 Aug 2026 17:22 — dual strategy review adoptions (user-approved; full texts in the Track 3 repo's audits)
+
+Two independent zero-context reviewers (fresh Fable, fresh codex) assessed both tracks. For this repo:
+- **Run priorities refined (codex):** keep a baseline-level fallback always; then pairwise BPR on the FM representation → user-grouped/listwise objective → blend/rank-average diverse successes. Sequences/multitask/watch-time only AFTER a clear above-noise gain — excellent report material, risky under the 6h clock. Randomized log stays out pending clarification (existing policy).
+- **Pitch recorded:** "an autonomous recommender researcher operating inside a tamper-evident lab" — lead with the score trajectory and autonomous decisions; machinery explained briefly after.
+- **Token metering:** attempt real provider-usage capture during the run; where impossible, self-reported figures are documented as such.
+- **Packaging:** this track packages FIRST (CPU-bound, 6h-capped); judge-facing README (user applies) + merge initial-architecture into main BEFORE submitting (both repos' default branches are nearly empty — a judge following the link today would miss the work); TEMP/handoff files out of the judge reading path; triage rule if time collapses: Track 3 ships polished, this track ships as-is (the journal self-documents).
