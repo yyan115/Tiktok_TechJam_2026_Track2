@@ -46,3 +46,15 @@
 - **Round 12 (on d4e4ea7): YES — Track 2 harness review loop CLOSED.** "Remaining blockers: none. Overall freeze verdict under the declared cooperative trust model: YES." Twelve rounds total: 8 findings → rebuild → 8-claim adversarial audit → sanitized-dataset round → then a documentation-consistency tail until the trail audited itself clean. Verdict preserved in Project/audits/track2_harness_verdict_round12.md. The executable bench had been freeze-ready since round 5; the tail rounds forged the audit-trail discipline now standing as ritual. Next: user freeze (TEMP-PROGRESS-LOG steps), then start-run.
 
 - **Final handoff drills (both repos, zero-context read-only agents): PASSED.** Both independently verified hashes, closed loops, and pending user gates; correctly refused to act. Adopted from their findings: Track 3's sibling-status staleness fixed; the amendment-bundling suggestion (one re-freeze for shape-14 oracle + official subcommand); and the meter-honesty policy above (no solution authoring before start-run).
+
+## 28 Aug 2026 afternoon — Track 2 webinar intel (user-provided transcript + slides 8-9; MEETING-NOTES.md)
+
+Adopted into the plan (user-approved):
+- **Video is officially optional for this track** (organizer will update the statement) — but the USER CHOOSES TO MAKE ONE anyway. Kept in deliverables; the report stays detailed regardless.
+- **Slide 9 confirms our design verbatim:** the agent sees the training split and public validation "used freely, every iteration"; it never sees the hidden test; "final ranking is computed once … from the submission the agent marks as final." Our mechanical label-strip + sealed once-only final is the official diagram, implemented.
+- **Final-model policy:** train on the TRAIN window only — never fold validation into final training (the engineer's own words plus his war story: touching test data once cost his production model ~10 AUC points; quotable in the report as motivation for our mechanical guards).
+- **Intervention definition (official):** only changes to the agent's BEHAVIOR count as manual interventions; restarting a crashed process — manually or via a second babysitter session — does not. → Our journal treats restarts as recovery events (which are separately graded evidence of robustness); the intervention counter tracks behavior changes only.
+- **Designated-run confirmation:** multiple development runs are fine; one official run is designated; earlier runs are disclosed. Exactly our setup-phase / start-run design.
+- **log_random usage remains officially unresolved** (deferred to email by the organizers). Conservative standing policy until clarified: sanitized version only, validation-analysis only, never training data.
+- Follow-up task: the engineer said "I have updated the starter toolkit" — verify our pinned kit matches the latest wiki download (read-only hash comparison) before the run starts.
+- Deadline hard-confirmed: registration AND submission close 1 Sep 12:00 noon; People's Choice voting 1–7 Sep.
