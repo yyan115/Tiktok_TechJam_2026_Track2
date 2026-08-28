@@ -35,6 +35,12 @@ exclusive lockfile and re-reads the ledger inside it.
 - The evaluator is probed before/after candidate code runs; drift aborts the run.
   Same-process residual documented in the harness docstring (cooperative trust model).
 
+**Auto-audit (mechanical):** a PostToolUse hook runs `Project/tools/best_watch.py` after
+every shell command; each NEW best finalizable experiment launches a detached blind codex
+audit (`Project/tools/audit_best.py`); verdicts append to `Project/audits/verdicts.jsonl`
+(committed) and show in the digest. Logs: `Project/audits/auto/` (gitignored).
+RULE_VIOLATION is loud; JUDGE_ERROR/TIMEOUT never block.
+
 ## Solution contract (files in Project/solutions/)
 `HYPOTHESIS = "..."` and `run(splits) -> {'valid': scores, 'test': scores}`, where splits
 is the organizers' row-tuple format with test labels zeroed. Scores: finite reals,
