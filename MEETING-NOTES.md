@@ -1,6 +1,6 @@
 Created 2026-08-26 4:06PM
 
-The webinar has been held and more information has been received. Here is the transcript of the meeting, along with questions asked at the end. Please piece together the information yourself, where and which questions were asked, if it was answered or not, etc. The transcript is not perfect, if it is not reliable, just forget about it instead.
+The webinar has been held and more information has been received. Here is the transcript of the meeting, along with questions asked at the end. Please piece together the information yourself, where and which questions were asked, if it was answered or not, etc. The transcript is not perfect, if it is not reliable, just forget about it instead. In fact, the questions asked were deemed to be not that useful by me, so I will only provide questions that were answered that I thought had at least some relevance. Do not need to bother if not needed.
 
 In addition, the slides are provided as well, they are ordered and may not be in the correct order but it should be.
 
@@ -628,3 +628,15 @@ that we might have and announcements as well.
 So we thank you so much for being part of TechGem2026
 and we hope to see you in the next webinar.
 Thank you.
+
+
+---
+
+QUESTIONS ASKED:
+
+Rohan
+Designated run. The brief describes “the run” (50-iteration cap, convergence rule, run logs, resource reporting). During development we necessarily execute the agent multiple times while building it. For the submission: may we designate one final run of the completed agent as the official run, with earlier development runs disclosed in our documentation, or is there a limit on how many runs may be executed before designating one?
+Final model training data. The splits fix train = 20220408–0421 and validation = 20220422–0428, with development on train + validation only. For the final submitted model (after all model selection is complete), may it be fitted on train + validation combined before producing hidden-test predictions, or must the final model be trained on the train window only?
+log_random file. The data policy permits only the KuaiRand datasets. The log_random_4_22_to_5_08_pure.csv file is part of KuaiRand-Pure but covers dates overlapping the validation/test windows. Is using it (as training data or features) permitted, or should teams treat it as off-limits under the split discipline?
+Kabir
+Is it true an autonomous model with mediocre scores will do better than a very accurate one with significantly more intervention?
