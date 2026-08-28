@@ -10,7 +10,9 @@ Everything runs on CPU; the baseline iteration takes ~30 s.
 python3 Project/harness/iterate.py check                                  # organizer files + dataset hashes
 python3 Project/harness/iterate.py run --solution Project/solutions/sXXX.py [--tokens N]
 python3 Project/harness/iterate.py log                                    # journal summary + convergence
+python3 Project/harness/iterate.py start-run                              # journal run_start (starts the 6h clock)
 python3 Project/harness/iterate.py final --entry ENTRYID                  # ONCE, at the very end
+python3 Project/tools/digest.py                                           # read-only journal digest (session-start view)
 python3 Project/harness/iterate.py intervention --describe "what and why" # honesty: log any manual help
 ```
 Prepend `--ledger /path/scratch.jsonl` to isolate test/wiring runs from the production

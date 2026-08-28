@@ -54,13 +54,15 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import os
+import re
 import subprocess
 import sys
 import time
 import types
 from pathlib import Path
 
-HARNESS_VERSION = "0.2.0-unfrozen"
+HARNESS_VERSION = "0.3.0-unfrozen"
 
 ROOT = Path(__file__).resolve().parents[2]
 KIT = ROOT / "kuairand-starter-kit"
@@ -197,10 +199,20 @@ class Trusted:
         # alignment, numeric/finite scores.
         self._read_submission(str(csv_path), self.splits["test"])
 
+    def score_csv(self, csv_path: Path):
+        """Score the checker-PARSED CSV — the exact submitted artifact."""
+        parsed = self._read_submission(str(csv_path), self.splits["test"])
+        rows = self.splits["test"]
+        self.probe("before final CSV scoring")
+        return self._evaluate([x[1] for x in rows], self._test_labels, parsed)
+
 
 # ---------------- journal ----------------
 
-def read_journal() -> list:
+def read_journal(fail_closed: bool = False) -> list:
+    """fail_closed=True (used by `final` and by run's gate checks): ANY
+    malformed line is treated as potentially-hidden state and blocks the
+    operation, instead of being skipped (codex round 2, finding 5)."""
     if not JOURNAL_PATH.exists():
         return []
     out, malformed = [], 0
@@ -212,8 +224,12 @@ def read_journal() -> list:
         except Exception:
             malformed += 1
     if malformed:
-        print(f"[warning] {JOURNAL_PATH.name} contains {malformed} malformed line(s) — "
-              "investigate before trusting derived results", file=sys.stderr)
+        message = (f"{JOURNAL_PATH.name} contains {malformed} malformed line(s)")
+        if fail_closed:
+            raise SystemExit(f"LEDGER INTEGRITY: {message} — refusing to proceed; "
+                             "repair/inspect the journal first")
+        print(f"[warning] {message} — investigate before trusting derived results",
+              file=sys.stderr)
     return out
 
 
@@ -240,11 +256,17 @@ def convergence_state(entries: list) -> dict:
     converged = False
     if len(primaries) > N_CONVERGE:
         converged = max(primaries[-N_CONVERGE:]) <= max(primaries[:-N_CONVERGE]) + EPSILON
+    # The 6h clock runs from the journaled run_start marker (written by
+    # `start-run` when the official autonomous run begins); setup/baseline
+    # iterations before the marker do not consume the allowance (codex round 2,
+    # finding 6). Falls back to the first iteration if no marker exists.
     elapsed = 0.0
-    if iteration_entries:
+    starts = [e for e in entries if e.get("type") == "run_start"]
+    anchor = starts[-1] if starts else (iteration_entries[0] if iteration_entries else None)
+    if anchor:
         try:
             first = time.mktime(time.strptime(
-                iteration_entries[0]["timestamp"][:19], "%Y-%m-%dT%H:%M:%S"))
+                anchor["timestamp"][:19], "%Y-%m-%dT%H:%M:%S"))
             elapsed = time.time() - first
         except Exception:
             pass
@@ -263,23 +285,44 @@ def final_exists(entries: list) -> bool:
     return any(e.get("type") in ("final", "final_pending") for e in entries)
 
 
-def load_solution(path: Path):
+SUSPICIOUS_SOURCE_PATTERNS = [
+    # Detection, not prevention (cooperative trust model): patterns that would
+    # let a solution reach raw test labels or harness internals. Flagged in the
+    # journal for audit attention (codex round 2, finding 1 — partial answer).
+    r"data\s*\.\s*load|from\s+data\s+import\s+load",
+    r"_test_labels", r"_getframe", r"inspect\.", r"KuaiRand-Pure",
+    r"log_standard_4_22", r"open\s*\(",
+]
+
+
+def scan_source(source_text: str) -> list:
+    return sorted({pat for pat in SUSPICIOUS_SOURCE_PATTERNS
+                   if re.search(pat, source_text)})
+
+
+def read_solution_source(path: Path):
+    """Read + hash BEFORE any execution so even a failing solution keeps full
+    provenance in the journal (codex round 2, finding 7)."""
     source_bytes = path.read_bytes()
-    sha = sha256_bytes(source_bytes)
+    return (sha256_bytes(source_bytes),
+            source_bytes.decode("utf-8", errors="replace"), source_bytes)
+
+
+def load_solution(path: Path, source_bytes: bytes):
     module = types.ModuleType(path.stem)
     module.__file__ = str(path)
     sys.modules[path.stem] = module
     exec(compile(source_bytes, str(path), "exec"), module.__dict__)
     if not hasattr(module, "run") or not hasattr(module, "HYPOTHESIS"):
         raise SystemExit(f"{path} must define HYPOTHESIS and run(splits)")
-    return module, sha, source_bytes.decode("utf-8", errors="replace")
+    return module
 
 
 # ---------------- commands ----------------
 
 def cmd_run(args) -> int:
     verify_hashes()
-    entries = read_journal()
+    entries = read_journal(fail_closed=True)
     state = convergence_state(entries)
 
     if final_exists(entries) and not args.post_final:
@@ -308,32 +351,65 @@ def cmd_run(args) -> int:
             "post_final": bool(args.post_final),
             "continue_past_convergence": bool(args.continue_past_convergence),
         },
+        "timeout_seconds": args.timeout,
+        "manifest_sha256": sha256_file(MANIFEST_PATH),
         "leak_guard": "mechanical: test labels stripped before solution code runs",
     }
 
+    # Provenance survives every failure path: source read + hashed pre-exec.
+    solution_path = Path(args.solution).resolve()
+    try:
+        sha, source_text, source_bytes = read_solution_source(solution_path)
+        rel = (str(solution_path.relative_to(ROOT))
+               if solution_path.is_relative_to(ROOT) else str(solution_path))
+        entry["solution"] = {"path": rel, "sha256": sha, "source": source_text}
+        entry["source_flags"] = scan_source(source_text)
+    except Exception as exc:
+        entry["solution"] = {"path": args.solution}
+        entry["error"] = f"source unreadable: {exc}"
+        entry["valid_metrics"] = None
+        entry["wall_seconds"] = 0.0
+        entry["convergence"] = convergence_state(entries + [entry])
+        append_journal(entry)
+        print(json.dumps({"iteration": entry["iteration"], "error": entry["error"]}, indent=2))
+        return 2
+    if entry["source_flags"]:
+        print(f"[audit-flag] solution source matches suspicious patterns: "
+              f"{entry['source_flags']} — journaled for review", file=sys.stderr)
+
+    import signal
+
+    def _timeout_handler(signum, frame):
+        raise TimeoutError(f"iteration exceeded --timeout {args.timeout}s")
+
     t0 = time.time()
     try:
-        solution_path = Path(args.solution).resolve()
         trusted = Trusted()          # loads data + probes evaluator FIRST
-        module, sha, source_text = load_solution(solution_path)   # candidate code runs here
-        entry["solution"] = {"path": str(solution_path.relative_to(ROOT)),
-                             "sha256": sha, "source": source_text}
+        module = load_solution(solution_path, source_bytes)  # candidate code runs here
         entry["hypothesis"] = getattr(module, "HYPOTHESIS", "")
-        result = module.run(trusted.restricted_splits())
+        signal.signal(signal.SIGALRM, _timeout_handler)
+        signal.alarm(max(1, int(args.timeout)))
+        try:
+            result = module.run(trusted.restricted_splits())
+        finally:
+            signal.alarm(0)
         entry["valid_metrics"] = trusted.score_valid(result["valid"])
+        # Probe BEFORE sealing: a tamper-detected run must not leave a seal
+        # behind (codex round 2, finding 2 ordering caveat).
+        trusted.probe("after solution run")
         entry["sealed_test_scores"] = trusted.seal_test_scores(
             entry["entry_id"], result["test"])
-        trusted.probe("after solution run")
         entry["error"] = None
     except BaseException as exc:  # noqa: BLE001 — recovery evidence IS graded
         if isinstance(exc, KeyboardInterrupt):
             raise
-        entry.setdefault("solution", {"path": args.solution})
         entry.setdefault("hypothesis", "")
         entry["valid_metrics"] = None
         entry["error"] = f"{type(exc).__name__}: {exc}"
     entry["wall_seconds"] = round(time.time() - t0, 1)
     entry["convergence"] = convergence_state(entries + [entry])
+    if entry["convergence"]["elapsed_hours"] * 3600 > WALL_CEILING_S:
+        entry["over_ceiling"] = True
 
     append_journal(entry)
     print(json.dumps({
@@ -348,56 +424,108 @@ def cmd_run(args) -> int:
 
 
 def cmd_final(args) -> int:
-    """Score the designated iteration's SEALED test scores, exactly once."""
+    """Score the designated iteration's SEALED test scores, exactly once.
+
+    Enforced (codex round 2, findings 3/5): fail-closed ledger read; an
+    exclusive lockfile against concurrent finals; the designated entry must be
+    error-free and SHOULD be the validation-best (deviating requires
+    --not-best with a journaled reason); the run should have terminated
+    (converged / cap / ceiling) unless --early-final with a journaled reason;
+    --force (re-final) requires a non-empty reason and is recorded on the
+    final entry itself."""
     verify_hashes()
-    entries = read_journal()
-    if final_exists(entries) and not args.force:
-        raise SystemExit("a final already exists — test may be scored only once. "
-                         "(--force overrides; it is journaled with your reason)")
-    target = next((e for e in entries if e.get("entry_id") == args.entry
-                   and e.get("type") == "iteration"), None)
-    if target is None:
-        raise SystemExit(f"iteration entry {args.entry} not found in journal")
-    seal = target.get("sealed_test_scores")
-    if not seal:
-        raise SystemExit(f"entry {args.entry} has no sealed test scores")
+    entries = read_journal(fail_closed=True)
+    lock_path = JOURNAL_PATH.parent / ".final.lock"
+    try:
+        lock_fd = os.open(str(lock_path), os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+        os.close(lock_fd)
+    except FileExistsError:
+        raise SystemExit(f"another final appears to be in progress ({lock_path} "
+                         "exists) — remove it only if you are certain none is")
+    try:
+        if final_exists(entries) and not args.force:
+            raise SystemExit("a final already exists — test may be scored only once. "
+                             "(--force overrides; requires a non-empty --reason)")
+        if args.force and not args.reason.strip():
+            raise SystemExit("--force requires a non-empty --reason")
+        target = next((e for e in entries if e.get("entry_id") == args.entry
+                       and e.get("type") == "iteration"), None)
+        if target is None:
+            raise SystemExit(f"iteration entry {args.entry} not found in journal")
+        if target.get("error") is not None:
+            raise SystemExit(f"entry {args.entry} recorded an error — an errored "
+                             "iteration cannot be designated final")
+        seal = target.get("sealed_test_scores")
+        if not seal:
+            raise SystemExit(f"entry {args.entry} has no sealed test scores")
+        state = convergence_state(entries)
+        if target["entry_id"] != state.get("best_entry_id") and not args.not_best:
+            raise SystemExit(
+                f"entry {args.entry} is not the validation-best "
+                f"({state.get('best_entry_id')}, primary {state.get('best_valid_primary')}). "
+                "The organizers require the validation-best checkpoint. "
+                "(--not-best overrides; requires a non-empty --reason)")
+        if args.not_best and not args.reason.strip():
+            raise SystemExit("--not-best requires a non-empty --reason")
+        terminated = (state["converged"]
+                      or state["iterations_used"] >= ITERATION_CAP
+                      or state["elapsed_hours"] * 3600 > WALL_CEILING_S)
+        if not terminated and not args.early_final:
+            raise SystemExit("the run has not terminated (not converged, under the "
+                             "cap and ceiling) — finalizing now requires "
+                             "--early-final with a non-empty --reason")
+        if args.early_final and not args.reason.strip():
+            raise SystemExit("--early-final requires a non-empty --reason")
 
-    # Marker BEFORE scoring: even a crash leaves evidence test was consumed.
-    append_journal({
-        "entry_id": time.strftime("%Y%m%d-%H%M%S") + "-pending",
-        "timestamp": time.strftime("%Y-%m-%dT%H:%M:%S%z"),
-        "type": "final_pending",
-        "designated_entry": args.entry,
-        "forced": bool(args.force),
-        "force_reason": args.reason or "",
-    })
+        # Marker BEFORE scoring: even a crash leaves evidence test was consumed.
+        append_journal({
+            "entry_id": time.strftime("%Y%m%d-%H%M%S") + "-pending",
+            "timestamp": time.strftime("%Y-%m-%dT%H:%M:%S%z"),
+            "type": "final_pending",
+            "designated_entry": args.entry,
+            "forced": bool(args.force),
+            "not_best": bool(args.not_best),
+            "early_final": bool(args.early_final),
+            "override_reason": args.reason or "",
+        })
 
-    trusted = Trusted()
-    metrics, arr = trusted.score_sealed_test(seal["path"], seal["sha256"])
-    csv_path = JOURNAL_PATH.parent / "final_submission_test.csv"
-    trusted.write_and_check_submission(csv_path, arr)
+        trusted = Trusted()
+        _, arr = trusted.score_sealed_test(seal["path"], seal["sha256"])
+        csv_path = JOURNAL_PATH.parent / "final_submission_test.csv"
+        trusted.write_and_check_submission(csv_path, arr)
+        # CSV parity (codex round 2, finding 4): the journaled metric is
+        # computed from the checker-PARSED CSV values — the exact bytes that
+        # would be submitted — not from the raw sealed array.
+        metrics = trusted.score_csv(csv_path)
 
-    entry = {
-        "entry_id": time.strftime("%Y%m%d-%H%M%S"),
-        "timestamp": time.strftime("%Y-%m-%dT%H:%M:%S%z"),
-        "type": "final",
-        "designated_entry": args.entry,
-        "designated_solution": {k: v for k, v in target.get("solution", {}).items()
-                                if k != "source"},
-        "harness_version": HARNESS_VERSION,
-        "harness_sha256": sha256_file(Path(__file__).resolve()),
-        **git_state(),
-        "valid_metrics": target.get("valid_metrics"),
-        "test_metrics": metrics,
-        "baseline_test_primary": BASELINE_TEST_PRIMARY,
-        "delta_over_baseline": round(metrics["primary"] - BASELINE_TEST_PRIMARY, 4),
-        "submission_csv": (str(csv_path.relative_to(ROOT))
-                           if csv_path.is_relative_to(ROOT) else str(csv_path)),
-        "submission_csv_sha256": sha256_file(csv_path),
-    }
-    append_journal(entry)
-    print(json.dumps(entry, indent=2))
-    return 0
+        entry = {
+            "entry_id": time.strftime("%Y%m%d-%H%M%S"),
+            "timestamp": time.strftime("%Y-%m-%dT%H:%M:%S%z"),
+            "type": "final",
+            "designated_entry": args.entry,
+            "designated_solution": {k: v for k, v in target.get("solution", {}).items()
+                                    if k != "source"},
+            "harness_version": HARNESS_VERSION,
+            "harness_sha256": sha256_file(Path(__file__).resolve()),
+            "manifest_sha256": sha256_file(MANIFEST_PATH),
+            **git_state(),
+            "valid_metrics": target.get("valid_metrics"),
+            "test_metrics_from_submitted_csv": metrics,
+            "baseline_test_primary": BASELINE_TEST_PRIMARY,
+            "delta_over_baseline": round(metrics["primary"] - BASELINE_TEST_PRIMARY, 4),
+            "forced": bool(args.force),
+            "not_best": bool(args.not_best),
+            "early_final": bool(args.early_final),
+            "override_reason": args.reason or "",
+            "submission_csv": (str(csv_path.relative_to(ROOT))
+                               if csv_path.is_relative_to(ROOT) else str(csv_path)),
+            "submission_csv_sha256": sha256_file(csv_path),
+        }
+        append_journal(entry)
+        print(json.dumps(entry, indent=2))
+        return 0
+    finally:
+        lock_path.unlink(missing_ok=True)
 
 
 def cmd_log(args) -> int:
@@ -438,12 +566,20 @@ def main() -> int:
                        help="journaled override: development run after a final exists")
     p_run.add_argument("--continue-past-convergence", action="store_true",
                        help="journaled override: run past the convergence rule")
+    p_run.add_argument("--timeout", type=int, default=1800,
+                       help="per-iteration wall timeout in seconds (journaled)")
     p_fin = sub.add_parser("final",
                            help="score one designated iteration's sealed test scores, once")
     p_fin.add_argument("--entry", required=True, help="journal entry_id to designate")
     p_fin.add_argument("--force", action="store_true",
-                       help="journaled override of the once-only rule")
-    p_fin.add_argument("--reason", default="", help="reason for --force")
+                       help="journaled override of the once-only rule (needs --reason)")
+    p_fin.add_argument("--not-best", action="store_true",
+                       help="journaled override: designate a non-validation-best entry")
+    p_fin.add_argument("--early-final", action="store_true",
+                       help="journaled override: finalize before termination")
+    p_fin.add_argument("--reason", default="", help="reason for any override flag")
+    sub.add_parser("start-run",
+                   help="journal the official run_start marker (starts the 6h clock)")
     sub.add_parser("log", help="print journal summary + convergence state")
     p_int = sub.add_parser("intervention", help="record a manual human intervention")
     p_int.add_argument("--describe", required=True)
@@ -454,6 +590,16 @@ def main() -> int:
     if args.cmd == "check":
         verify_hashes()
         print("hashes OK (organizer files + dataset)")
+        return 0
+    if args.cmd == "start-run":
+        append_journal({
+            "entry_id": time.strftime("%Y%m%d-%H%M%S"),
+            "timestamp": time.strftime("%Y-%m-%dT%H:%M:%S%z"),
+            "type": "run_start",
+            "harness_version": HARNESS_VERSION,
+            "harness_sha256": sha256_file(Path(__file__).resolve()),
+        })
+        print("run_start journaled — the 6h ceiling clock starts now")
         return 0
     return {"run": cmd_run, "final": cmd_final, "log": cmd_log,
             "intervention": cmd_intervention}[args.cmd](args)

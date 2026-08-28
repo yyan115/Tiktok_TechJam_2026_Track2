@@ -2,7 +2,7 @@
 
 ## The system in one line
 
-The same hardened cross-reviewed loop as Track 3, pointed at a recommender-system pipeline: Fable (Claude) proposes and codes improvements → the organizers' own scoring script judges them → every iteration is auto-journaled (hypothesis, code diff, metrics, errors/recovery — the journal IS a required competition deliverable) → Sol (codex) reviews at checkpoints → the user retains final authority. Target: a fully autonomous run, zero manual interventions.
+The same hardened cross-reviewed loop as Track 3, pointed at a recommender-system pipeline: Fable (Claude) proposes and codes improvements → the organizers' own scoring script judges them → every iteration is auto-journaled (hypothesis, the solution's full verbatim source + hash, metrics, errors/recovery — the journal IS a required competition deliverable; code diffs are derivable from consecutive journaled sources) → Sol (codex) reviews at checkpoints → the user retains final authority. Target: a fully autonomous run, zero manual interventions.
 
 ## The task (plain words)
 
@@ -33,7 +33,7 @@ Their ranked untried directions, our starting order:
 5. Model swaps (DeepFM/DCN/xDeepFM) — deprioritized; capacity is proven not the bottleneck.
 6. Time features / train→test drift.
 7. The randomized-exposure log as an unbiased extra validation set (also an innovation flourish).
-The agent re-orders this queue from its own results, does a fresh web search before each new idea, ends with an agent-designed ensemble of top diverse candidates (rank averaging), and never repeats a journaled failure.
+The agent re-orders this queue from its own results, does a fresh web search before each new idea, ends with an agent-designed ensemble of top diverse candidates (rank averaging), and never repeats a journaled failure. **Reflection ritual (mandatory):** after every iteration, append a one-line distilled lesson to LESSONS.md and re-rank the queue; read tools/digest.py output at each session start.
 
 ## Stages
 
