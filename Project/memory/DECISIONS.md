@@ -72,3 +72,10 @@ Two independent zero-context reviewers (fresh Fable, fresh codex) assessed both 
 - **Pitch recorded:** "an autonomous recommender researcher operating inside a tamper-evident lab" — lead with the score trajectory and autonomous decisions; machinery explained briefly after.
 - **Token metering:** attempt real provider-usage capture during the run; where impossible, self-reported figures are documented as such.
 - **Packaging:** this track packages FIRST (CPU-bound, 6h-capped); judge-facing README (user applies) + merge initial-architecture into main BEFORE submitting (both repos' default branches are nearly empty — a judge following the link today would miss the work); TEMP/handoff files out of the judge reading path; triage rule if time collapses: Track 3 ships polished, this track ships as-is (the journal self-documents).
+
+## 28 Aug 2026 17:25 — FREEZE APPROVED (Track 2) — the user's formal sign-off
+
+Same act as Track 3's: the user pasted the harness deny lines into this repo's .claude/settings.json (verified: valid JSON, both lines present, hooks intact) and approved the freeze conditionally on that verification — condition met.
+- Frozen artifact: Project/harness/iterate.py v0.5.0, sha256 starting 1babd3606bb23f5a; approval recorded at commit 5e3f97b; reviewer sign-off round 12 YES.
+- Same honest caveat as Track 3: locks/hooks arm at the next session start (user on remote access); until then, hash verification + git history + behavioral compliance are the active layers.
+- From this moment: no edits to Project/harness/** or any protected file by Claude's tools; changes only via a formal re-freeze.
