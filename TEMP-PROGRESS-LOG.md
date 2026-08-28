@@ -57,6 +57,7 @@ authoritative (GAUC + nDCG@5, long_view). README is your file; annotate it if yo
 - **Digest** — the one-page view of the logbook the agent reads at session start. → `python3 Project/tools/digest.py`
 
 **The oversight:**
+- **Auto-audit** — every new best experiment automatically triggers a background GPT review (mechanical trigger, not Claude's choice); verdicts show in the digest. → `Project/tools/best_watch.py`
 - **Second-AI review trail** — codex reviewed this bench TWELVE times, rejecting it for real flaws until "remaining blockers: none." Final sign-off verbatim: → `Project/audits/track2_harness_verdict_round12.md`
 - **Operating manual** — every command, what writes what, the honesty rules. → `Project/RUNBOOK.md`
 

@@ -6,3 +6,5 @@ __pycache__/
 *.pyc
 Project/results/sealed/
 kuairand-starter-kit/KuaiRand-Pure/data_sanitized/
+Project/tools/.best_cache.json
+Project/audits/auto/

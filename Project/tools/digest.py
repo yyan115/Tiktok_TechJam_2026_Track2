@@ -13,6 +13,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 JOURNAL = ROOT / "Project" / "results" / "JOURNAL.jsonl"
+VERDICTS = ROOT / "Project" / "audits" / "verdicts.jsonl"
 
 
 def main() -> int:
@@ -76,6 +77,16 @@ def main() -> int:
         outcome = (f"primary {vm['primary']:.4f}" if vm
                    else f"ERROR: {str(e.get('error'))[:60]}")
         star = " ★" if best and e["entry_id"] == best["entry_id"] else ""
+        verdicts = {}
+        if VERDICTS.exists():
+            for vl in VERDICTS.read_text().splitlines():
+                try:
+                    v = json.loads(vl)
+                    verdicts[v["entry_id"]] = v["verdict"]
+                except Exception:
+                    pass
+        audit = verdicts.get(e["entry_id"])
+        star += f" [audit: {audit}]" if audit else ""
         flags = f" [flags: {', '.join(e['source_flags'])}]" if e.get("source_flags") else ""
         print(f"#{e.get('iteration', '?'):>2} {e['entry_id']}{star} | {outcome}{flags}")
         print(f"    {e.get('hypothesis', '')[:100]}")

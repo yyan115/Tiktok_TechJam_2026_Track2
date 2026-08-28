@@ -39,6 +39,20 @@
           }
         ]
       }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"$CLAUDE_PROJECT_DIR/Project/tools/best_watch.py\" 2>/dev/null || true",
+            "async": true,
+            "timeout": 30,
+            "statusMessage": "Champion watch"
+          }
+        ]
+      }
     ]
   }
 }

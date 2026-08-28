@@ -58,3 +58,7 @@ Adopted into the plan (user-approved):
 - **log_random usage remains officially unresolved** (deferred to email by the organizers). Conservative standing policy until clarified: sanitized version only, validation-analysis only, never training data.
 - Follow-up task: the engineer said "I have updated the starter toolkit" — verify our pinned kit matches the latest wiki download (read-only hash comparison) before the run starts.
 - Deadline hard-confirmed: registration AND submission close 1 Sep 12:00 noon; People's Choice voting 1–7 Sep.
+
+## 28 Aug 2026 16:48 — auto-audit per best experiment (user-directed, mechanically triggered)
+
+Mirror of Track 3's mechanism: Project/tools/best_watch.py (hook-invoked; detects a change in the best FINALIZABLE experiment using the bench's own rule) + Project/tools/audit_best.py (detached blind codex audit of the journal entry incl. full solution source; verdict appended to Project/audits/verdicts.jsonl; digest displays the audit column). Non-blocking; hook added to .claude/settings.json this setup era (disclosed), arms at the user's restart. First real firing: the baseline best's audit launched at build time.

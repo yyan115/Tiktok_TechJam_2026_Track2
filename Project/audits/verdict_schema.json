@@ -1,0 +1,30 @@
+{
+  "type": "object",
+  "properties": {
+    "verdict": {
+      "type": "string",
+      "enum": ["PASS", "RETEST", "NEEDS_CONTEXT", "RULE_VIOLATION"]
+    },
+    "findings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "severity": { "type": "string", "enum": ["blocker", "major", "minor", "note"] },
+          "file": { "type": "string", "description": "File the finding is about, or empty string" },
+          "issue": { "type": "string" },
+          "suggested_fix": { "type": "string", "description": "Suggested fix, or empty string" }
+        },
+        "required": ["severity", "file", "issue", "suggested_fix"],
+        "additionalProperties": false
+      }
+    },
+    "retest_request": {
+      "type": "string",
+      "description": "Empty string unless verdict is RETEST: one precise test for the trusted runner to perform, chosen from: different seeds, perturbed inputs, more iterations, different padding ratio, wall-clock cross-check, profiler capture."
+    },
+    "summary": { "type": "string" }
+  },
+  "required": ["verdict", "findings", "retest_request", "summary"],
+  "additionalProperties": false
+}
