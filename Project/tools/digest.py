@@ -33,7 +33,14 @@ def main() -> int:
     finals = [e for e in entries if e.get("type") in ("final", "final_pending")]
     interventions = [e for e in entries if e.get("type") == "intervention"]
     scored = [e for e in iterations if e.get("valid_metrics")]
-    best = max(scored, key=lambda e: e["valid_metrics"]["primary"], default=None)
+    # Finalizable-best mirrors the harness's final gating exactly: error-free,
+    # sealed, LAST among tied maxima (codex round 3, finding 6).
+    finalizable = [e for e in scored
+                   if e.get("error") is None and e.get("sealed_test_scores")]
+    best = None
+    if finalizable:
+        top = max(e["valid_metrics"]["primary"] for e in finalizable)
+        best = [e for e in finalizable if e["valid_metrics"]["primary"] == top][-1]
 
     print("# JOURNAL DIGEST (read-only view; source of truth = JOURNAL.jsonl)\n")
     if malformed:

@@ -18,8 +18,9 @@ python3 Project/harness/iterate.py intervention --describe "what and why" # hone
 Prepend `--ledger /path/scratch.jsonl` to isolate test/wiring runs from the production
 journal (a scratch final writes its CSV next to the scratch ledger).
 
-**Serialization rule: exactly ONE harness process at a time** (append-only journal, no
-locking by design — single-operator project).
+**Serialization rule: exactly ONE harness process at a time.** The journal is append-only
+without general file locking (single-operator project); `final` alone additionally takes an
+exclusive lockfile and re-reads the ledger inside it.
 
 ## Honesty rules the harness enforces mechanically
 - Solutions receive test rows with labels STRIPPED; test labels live only inside the

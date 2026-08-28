@@ -5,3 +5,4 @@ kuairand-starter-kit/KuaiRand-Pure.tar.gz
 __pycache__/
 *.pyc
 Project/results/sealed/
+kuairand-starter-kit/KuaiRand-Pure/data_sanitized/

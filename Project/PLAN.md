@@ -38,7 +38,7 @@ The agent re-orders this queue from its own results, does a fresh web search bef
 ## Stages
 
 - **Stage 0 — Rails** (done at setup): starter kit unzipped + hash-pinned; dataset downloaded (gitignored); all three official baselines reproduced within published seed-noise (random 0.4757 / pop 0.5715 exact / FM 0.5953 vs 0.5946±0.0008); wiki + guardrails in place.
-- **Stage 1 — Iteration harness:** one command runs a candidate pipeline, scores validation via the organizers' evaluate.py, appends the journal (hypothesis, diff, metrics, errors, tokens, wall-clock), tracks current-best, enforces the convergence rule and leak-guard. Sol reviews it, user approves, freeze — same ceremony as Track 3.
+- **Stage 1 — Iteration harness:** one command runs a candidate pipeline, scores validation via the organizers' evaluate.py, appends the journal (hypothesis, full verbatim solution source + hash, metrics, errors, tokens, wall-clock), tracks the current finalizable-best, and ENFORCES the convergence rule, budgets, and the mechanical leak-guards. Sol reviews it, user approves, freeze — same ceremony as Track 3.
 - **Stage 2 — The run:** the agent iterates the hypothesis queue autonomously to convergence or caps.
 - **Stage 3 — Final:** designate validation-best, score test once, generate + `--check` the submission CSV, package (report from the journal, resource totals, intervention count).
 

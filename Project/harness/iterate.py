@@ -62,14 +62,19 @@ import time
 import types
 from pathlib import Path
 
-HARNESS_VERSION = "0.3.0-unfrozen"
+HARNESS_VERSION = "0.4.0-unfrozen"
 
 ROOT = Path(__file__).resolve().parents[2]
 KIT = ROOT / "kuairand-starter-kit"
 DATA_DIR = KIT / "KuaiRand-Pure" / "data"
 MANIFEST_PATH = ROOT / "Project" / "manifest.json"
 RESULTS_DIR = ROOT / "Project" / "results"
-SEALED_DIR = RESULTS_DIR / "sealed"
+
+
+def sealed_dir() -> Path:
+    # Seals live NEXT TO the active ledger so scratch runs can never touch
+    # production artifacts (codex round 3, finding 5).
+    return JOURNAL_PATH.parent / "sealed"
 
 EPSILON = 0.002     # organizers' convergence rule
 N_CONVERGE = 3
@@ -175,23 +180,29 @@ class Trusted:
     def seal_test_scores(self, entry_id: str, scores) -> dict:
         import numpy as np
         arr = self._check_scores(self.splits["test"], scores)
-        SEALED_DIR.mkdir(parents=True, exist_ok=True)
-        path = SEALED_DIR / f"{entry_id}.npy"
+        d = sealed_dir()
+        d.mkdir(parents=True, exist_ok=True)
+        path = d / f"{entry_id}.npy"
+        rel = (str(path.relative_to(ROOT)) if path.is_relative_to(ROOT) else str(path))
         np.save(path, arr)
-        return {"path": str(path.relative_to(ROOT)), "sha256": sha256_file(path)}
+        return {"path": rel, "sha256": sha256_file(path)}
 
-    def score_sealed_test(self, sealed_rel_path: str, expected_sha: str):
+    def load_sealed(self, sealed_path_str: str, expected_sha: str):
+        """Load + verify a sealed prediction file WITHOUT evaluating it —
+        hidden-test labels are consulted exactly once, in score_csv()
+        (codex round 3, finding 1)."""
         import numpy as np
-        path = ROOT / sealed_rel_path
+        path = Path(sealed_path_str)
+        if not path.is_absolute():
+            path = ROOT / path
         if sha256_file(path) != expected_sha:
             raise SystemExit("sealed test scores do not match their journaled hash")
         arr = np.load(path)
-        rows = self.splits["test"]
-        if len(arr) != len(rows):
+        if len(arr) != len(self.splits["test"]):
             raise SystemExit("sealed score count does not match test split")
-        self.probe("before final test scoring")
-        metrics = self._evaluate([x[1] for x in rows], self._test_labels, list(arr))
-        return metrics, arr
+        if not np.all(np.isfinite(arr)):
+            raise SystemExit("sealed scores contain NaN/Inf")
+        return arr
 
     def write_and_check_submission(self, csv_path: Path, arr) -> None:
         self._write_submission(str(csv_path), self.splits["test"], list(arr))
@@ -248,11 +259,18 @@ def convergence_state(entries: list) -> dict:
     primaries = [e["valid_metrics"]["primary"] for e in iteration_entries
                  if e.get("valid_metrics")]
     best = max(primaries) if primaries else None
+    # best_entry_id points at the best FINALIZABLE entry (error-free + sealed,
+    # last among tied maxima) so the final gate and the digest agree; falls
+    # back to any scored entry when nothing is finalizable yet.
     best_entry_id = None
     if best is not None:
-        for e in iteration_entries:
-            if e.get("valid_metrics") and e["valid_metrics"]["primary"] == best:
-                best_entry_id = e["entry_id"]
+        candidates = [e for e in iteration_entries
+                      if e.get("valid_metrics") and e.get("error") is None
+                      and e.get("sealed_test_scores")]
+        pool = candidates or [e for e in iteration_entries if e.get("valid_metrics")]
+        top = max(e["valid_metrics"]["primary"] for e in pool)
+        best_entry_id = [e for e in pool
+                         if e["valid_metrics"]["primary"] == top][-1]["entry_id"]
     converged = False
     if len(primaries) > N_CONVERGE:
         converged = max(primaries[-N_CONVERGE:]) <= max(primaries[:-N_CONVERGE]) + EPSILON
@@ -262,7 +280,7 @@ def convergence_state(entries: list) -> dict:
     # finding 6). Falls back to the first iteration if no marker exists.
     elapsed = 0.0
     starts = [e for e in entries if e.get("type") == "run_start"]
-    anchor = starts[-1] if starts else (iteration_entries[0] if iteration_entries else None)
+    anchor = starts[0] if starts else (iteration_entries[0] if iteration_entries else None)
     if anchor:
         try:
             first = time.mktime(time.strptime(
@@ -276,8 +294,21 @@ def convergence_state(entries: list) -> dict:
         "best_valid_primary": best,
         "best_entry_id": best_entry_id,
         "converged": converged,
+        "elapsed_seconds": round(elapsed, 1),
         "elapsed_hours": round(elapsed / 3600, 2),
         "wall_ceiling_hours": WALL_CEILING_S / 3600,
+    }
+
+
+def base_entry_fields(entry_type: str) -> dict:
+    import secrets
+    return {
+        "entry_id": time.strftime("%Y%m%d-%H%M%S") + "-" + secrets.token_hex(3),
+        "timestamp": time.strftime("%Y-%m-%dT%H:%M:%S%z"),
+        "type": entry_type,
+        "harness_version": HARNESS_VERSION,
+        "harness_sha256": sha256_file(Path(__file__).resolve()),
+        "manifest_sha256": sha256_file(MANIFEST_PATH),
     }
 
 
@@ -287,11 +318,14 @@ def final_exists(entries: list) -> bool:
 
 SUSPICIOUS_SOURCE_PATTERNS = [
     # Detection, not prevention (cooperative trust model): patterns that would
-    # let a solution reach raw test labels or harness internals. Flagged in the
-    # journal for audit attention (codex round 2, finding 1 — partial answer).
+    # let a solution reach RAW test labels or harness internals. File-level
+    # data access is legitimate via the sanitized copy (data_sanitized/);
+    # only the raw dir is flagged. Also flags signal handling (a cooperative
+    # solution must not catch the harness timeout).
     r"data\s*\.\s*load|from\s+data\s+import\s+load",
-    r"_test_labels", r"_getframe", r"inspect\.", r"KuaiRand-Pure",
-    r"log_standard_4_22", r"open\s*\(",
+    r"_test_labels", r"_getframe", r"inspect\.",
+    r"KuaiRand-Pure/data/", r"open\s*\(",
+    r"\bsignal\b", r"TimeoutError",
 ]
 
 
@@ -325,9 +359,11 @@ def cmd_run(args) -> int:
     entries = read_journal(fail_closed=True)
     state = convergence_state(entries)
 
+    if (args.post_final or args.continue_past_convergence) and not args.override_reason.strip():
+        raise SystemExit("run override flags require a non-empty --override-reason")
     if final_exists(entries) and not args.post_final:
         raise SystemExit("a final entry exists — development is closed. "
-                         "(--post-final overrides and is journaled as such)")
+                         "(--post-final overrides; needs --override-reason)")
     if state["iterations_used"] >= ITERATION_CAP:
         raise SystemExit("iteration cap (50) reached — no further runs allowed")
     if state["converged"] and not args.continue_past_convergence:
@@ -335,7 +371,7 @@ def cmd_run(args) -> int:
             "converged by the organizers' rule (no >0.002 improvement over the "
             "last 3 scores) — designate a final. "
             "(--continue-past-convergence overrides and is journaled as such)")
-    if state["elapsed_hours"] * 3600 > WALL_CEILING_S and not args.continue_past_convergence:
+    if state["elapsed_seconds"] > WALL_CEILING_S and not args.continue_past_convergence:
         raise SystemExit("6h wall-clock ceiling exceeded — designate a final")
 
     entry = {
@@ -350,6 +386,7 @@ def cmd_run(args) -> int:
         "overrides": {
             "post_final": bool(args.post_final),
             "continue_past_convergence": bool(args.continue_past_convergence),
+            "reason": args.override_reason or "",
         },
         "timeout_seconds": args.timeout,
         "manifest_sha256": sha256_file(MANIFEST_PATH),
@@ -383,16 +420,17 @@ def cmd_run(args) -> int:
         raise TimeoutError(f"iteration exceeded --timeout {args.timeout}s")
 
     t0 = time.time()
+    # The alarm brackets the ENTIRE iteration — data load, candidate import,
+    # run, lazy-score consumption, validation scoring, probing, sealing — so a
+    # hang anywhere is bounded (codex round 3, finding 2). A cooperative
+    # solution must not catch harness TimeoutError (scanner flags signal use).
+    signal.signal(signal.SIGALRM, _timeout_handler)
+    signal.alarm(max(1, int(args.timeout)))
     try:
         trusted = Trusted()          # loads data + probes evaluator FIRST
         module = load_solution(solution_path, source_bytes)  # candidate code runs here
         entry["hypothesis"] = getattr(module, "HYPOTHESIS", "")
-        signal.signal(signal.SIGALRM, _timeout_handler)
-        signal.alarm(max(1, int(args.timeout)))
-        try:
-            result = module.run(trusted.restricted_splits())
-        finally:
-            signal.alarm(0)
+        result = module.run(trusted.restricted_splits())
         entry["valid_metrics"] = trusted.score_valid(result["valid"])
         # Probe BEFORE sealing: a tamper-detected run must not leave a seal
         # behind (codex round 2, finding 2 ordering caveat).
@@ -406,9 +444,11 @@ def cmd_run(args) -> int:
         entry.setdefault("hypothesis", "")
         entry["valid_metrics"] = None
         entry["error"] = f"{type(exc).__name__}: {exc}"
+    finally:
+        signal.alarm(0)
     entry["wall_seconds"] = round(time.time() - t0, 1)
     entry["convergence"] = convergence_state(entries + [entry])
-    if entry["convergence"]["elapsed_hours"] * 3600 > WALL_CEILING_S:
+    if entry["convergence"]["elapsed_seconds"] > WALL_CEILING_S:
         entry["over_ceiling"] = True
 
     append_journal(entry)
@@ -434,7 +474,6 @@ def cmd_final(args) -> int:
     --force (re-final) requires a non-empty reason and is recorded on the
     final entry itself."""
     verify_hashes()
-    entries = read_journal(fail_closed=True)
     lock_path = JOURNAL_PATH.parent / ".final.lock"
     try:
         lock_fd = os.open(str(lock_path), os.O_CREAT | os.O_EXCL | os.O_WRONLY)
@@ -443,6 +482,9 @@ def cmd_final(args) -> int:
         raise SystemExit(f"another final appears to be in progress ({lock_path} "
                          "exists) — remove it only if you are certain none is")
     try:
+        # Ledger read happens INSIDE the lock (codex round 3, finding 3:
+        # a pre-lock read could act on a stale no-final snapshot).
+        entries = read_journal(fail_closed=True)
         if final_exists(entries) and not args.force:
             raise SystemExit("a final already exists — test may be scored only once. "
                              "(--force overrides; requires a non-empty --reason)")
@@ -469,7 +511,7 @@ def cmd_final(args) -> int:
             raise SystemExit("--not-best requires a non-empty --reason")
         terminated = (state["converged"]
                       or state["iterations_used"] >= ITERATION_CAP
-                      or state["elapsed_hours"] * 3600 > WALL_CEILING_S)
+                      or state["elapsed_seconds"] > WALL_CEILING_S)
         if not terminated and not args.early_final:
             raise SystemExit("the run has not terminated (not converged, under the "
                              "cap and ceiling) — finalizing now requires "
@@ -490,7 +532,7 @@ def cmd_final(args) -> int:
         })
 
         trusted = Trusted()
-        _, arr = trusted.score_sealed_test(seal["path"], seal["sha256"])
+        arr = trusted.load_sealed(seal["path"], seal["sha256"])
         csv_path = JOURNAL_PATH.parent / "final_submission_test.csv"
         trusted.write_and_check_submission(csv_path, arr)
         # CSV parity (codex round 2, finding 4): the journaled metric is
@@ -526,6 +568,52 @@ def cmd_final(args) -> int:
         return 0
     finally:
         lock_path.unlink(missing_ok=True)
+
+
+SANITIZED_DIR = DATA_DIR.parent / "data_sanitized"
+# Feedback columns zeroed on TEST-date rows (>= 20220429): every engagement
+# signal, including play_time_ms (long_view is derivable from play time vs
+# duration, so play time must go too). duration_ms/is_rand are item/context
+# properties and stay. Train/validation rows are untouched.
+FEEDBACK_COLUMNS = ["is_click", "is_like", "is_follow", "is_comment", "is_forward",
+                    "is_hate", "long_view", "play_time_ms", "profile_stay_time",
+                    "comment_stay_time", "is_profile_enter"]
+TEST_DATE_START = 20220429
+
+
+def cmd_sanitize(args) -> int:
+    """Build the sanitized dataset copy — the SANCTIONED path for solutions
+    that need file-level access to auxiliary signals (sequences, multi-task
+    labels): identical to the raw data except every feedback column is zeroed
+    on test-date rows (codex round 3, finding 4: raw rereads are a plausible
+    cooperative mistake, so a safe copy must exist)."""
+    import csv as _csv
+    import shutil
+    SANITIZED_DIR.mkdir(parents=True, exist_ok=True)
+    report = {}
+    for f in sorted(DATA_DIR.iterdir()):
+        out = SANITIZED_DIR / f.name
+        if f.name == "log_standard_4_22_to_5_08_pure.csv":
+            with open(f, newline="") as src, open(out, "w", newline="") as dst:
+                reader = _csv.DictReader(src)
+                writer = _csv.DictWriter(dst, fieldnames=reader.fieldnames)
+                writer.writeheader()
+                zeroed = 0
+                for row in reader:
+                    if int(row["date"]) >= TEST_DATE_START:
+                        for col in FEEDBACK_COLUMNS:
+                            if col in row:
+                                row[col] = "0"
+                        zeroed += 1
+                    writer.writerow(row)
+            report[f.name] = f"test-date rows zeroed: {zeroed}"
+        else:
+            shutil.copyfile(f, out)
+            report[f.name] = "copied unchanged"
+        report[f.name + " sha256"] = sha256_file(out)
+    print(json.dumps({"sanitized_dir": str(SANITIZED_DIR.relative_to(ROOT)),
+                      "files": report}, indent=2))
+    return 0
 
 
 def cmd_log(args) -> int:
@@ -566,6 +654,8 @@ def main() -> int:
                        help="journaled override: development run after a final exists")
     p_run.add_argument("--continue-past-convergence", action="store_true",
                        help="journaled override: run past the convergence rule")
+    p_run.add_argument("--override-reason", default="",
+                       help="required reason when using a run override flag (journaled)")
     p_run.add_argument("--timeout", type=int, default=1800,
                        help="per-iteration wall timeout in seconds (journaled)")
     p_fin = sub.add_parser("final",
@@ -580,6 +670,8 @@ def main() -> int:
     p_fin.add_argument("--reason", default="", help="reason for any override flag")
     sub.add_parser("start-run",
                    help="journal the official run_start marker (starts the 6h clock)")
+    sub.add_parser("sanitize-data",
+                   help="build the sanitized dataset copy (safe file-level access for solutions)")
     sub.add_parser("log", help="print journal summary + convergence state")
     p_int = sub.add_parser("intervention", help="record a manual human intervention")
     p_int.add_argument("--describe", required=True)
@@ -591,14 +683,17 @@ def main() -> int:
         verify_hashes()
         print("hashes OK (organizer files + dataset)")
         return 0
+    if args.cmd == "sanitize-data":
+        verify_hashes()
+        return cmd_sanitize(args)
     if args.cmd == "start-run":
-        append_journal({
-            "entry_id": time.strftime("%Y%m%d-%H%M%S"),
-            "timestamp": time.strftime("%Y-%m-%dT%H:%M:%S%z"),
-            "type": "run_start",
-            "harness_version": HARNESS_VERSION,
-            "harness_sha256": sha256_file(Path(__file__).resolve()),
-        })
+        existing = [e for e in read_journal(fail_closed=True)
+                    if e.get("type") == "run_start"]
+        if existing:
+            raise SystemExit(f"a run_start marker already exists "
+                             f"({existing[0]['entry_id']}) — the clock anchors to "
+                             "the FIRST marker and cannot be reset")
+        append_journal(base_entry_fields("run_start"))
         print("run_start journaled — the 6h ceiling clock starts now")
         return 0
     return {"run": cmd_run, "final": cmd_final, "log": cmd_log,
