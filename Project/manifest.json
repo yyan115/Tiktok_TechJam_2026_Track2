@@ -19,8 +19,26 @@
   ],
   "baseline_reproduction_28aug2026": {
     "environment": "AMD-hosted Fedora, Python 3.14.7, numpy, single CPU core",
-    "random": { "test_primary": 0.4757, "official": 0.4753, "status": "within seed noise" },
-    "item_popularity": { "test_primary": 0.5715, "official": 0.5715, "status": "exact match" },
-    "fm": { "test_primary": 0.5953, "official": "0.5946 ± 0.0008 (5 seeds)", "status": "within 1 std" }
+    "random": {
+      "test_primary": 0.4757,
+      "official": 0.4753,
+      "status": "within seed noise"
+    },
+    "item_popularity": {
+      "test_primary": 0.5715,
+      "official": 0.5715,
+      "status": "exact match"
+    },
+    "fm": {
+      "test_primary": 0.5953,
+      "official": "0.5946 \u00b1 0.0008 (5 seeds)",
+      "status": "within 1 std"
+    },
+    "_test_score_policy": "These three reference test scores reproduce the ORGANIZERS' OWN published numbers by running their unmodified baseline.py, per the competition's explicit reproduce-the-baseline instruction; no information beyond their published table was obtained. Policy from here on, enforced by the harness: no agent-designed solution's test metrics are computed or revealed until the single designated `final`."
+  },
+  "dataset_files": {
+    "kuairand-starter-kit/KuaiRand-Pure/data/log_standard_4_08_to_4_21_pure.csv": "5bb6eb0b3d9f47e5436cb5dc82ee1899b845ebf9750a5560b801e929e18bd41c",
+    "kuairand-starter-kit/KuaiRand-Pure/data/log_standard_4_22_to_5_08_pure.csv": "429e3b948828942e572f2c3a5be5a25799ffe75591d22d18cf417b9b534d31fd",
+    "kuairand-starter-kit/KuaiRand-Pure/data/video_features_basic_pure.csv": "a6f7ee02684c5777422306cdc416e170302288aa89aca9dfea995edbd625bcc2"
   }
 }

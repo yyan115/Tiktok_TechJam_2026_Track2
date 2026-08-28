@@ -1,13 +1,13 @@
 # STATE — read this first in every session
 
-Updated: 2026-08-28 ~08:45 (initial setup by the Track 3 session, user at work)
+Updated: 2026-08-28 ~10:45 (harness v0.2.0 rebuild after codex round 1)
 
 ## Where we are
 - Research + plan approved by user (28 Aug morning): see Project/PLAN.md. This repo mirrors Track 3's architecture (user's repo: ../Tiktok_TechJam_2026_Track3 — read its DECISIONS.md for the full origin story).
 - Stage 0 DONE: starter kit unzipped + hash-pinned (Project/manifest.json), dataset downloaded (gitignored — re-download command in .gitignore header), all three official baselines reproduced within published seed noise. Guardrails + wiki in place.
-- Stage 1 (iteration harness) BUILT: Project/harness/iterate.py v0.1.0-unfrozen (validation-only feedback, organizers' convergence rule, leak-guard note, journal append, intervention counter, single-shot `final` for test scoring). Proven end-to-end: iteration 1 (organizers' FM via our harness, Project/solutions/s000_fm_baseline.py) journaled at valid primary 0.6015 (official reference 0.6016) in 31 s.
-- Harness NOT yet Sol-reviewed or frozen — that's its gate before the autonomous run (same ceremony as Track 3's referee).
-- Optimization budget untouched: 1 of 50 iterations used (the baseline reproduction).
+- Stage 1 (iteration harness) REBUILT as v0.2.0-unfrozen after codex audit round 1 (verdict NO, 8 findings — all addressed): mechanical test-label stripping, evaluator tamper probes, sealed test predictions, enforced once-only final (+ crash-evidence marker + official checker), enforced convergence/cap/6h-ceiling with journaled overrides, complete journal provenance (harness sha, git state, dataset hashes, verbatim solution source). Proven end-to-end: iteration 2 at valid primary 0.6015; full final wiring proven on a scratch ledger (delta +0.0007 = published baseline; once-only and post-final refusals verified).
+- Harness awaiting codex re-review (round 2) of the v0.2.0 rebuild, then user freeze — the gate before the autonomous run.
+- Optimization budget: 2 of 50 iterations used (both baseline reproductions — v0.1 contract and v0.2 restricted contract).
 
 ## Standing rules (never violate)
 1. Never edit: kuairand-starter-kit/** (organizer ground truth — evaluate.py is the sole scoring authority), README.md, Project/manifest.json, Project/results/** (harness-written only), .claude/**. After freeze: Project/harness/.

@@ -3,6 +3,12 @@
 Purpose: prove the full loop end-to-end (solution -> harness -> official
 scoring -> journal) and pin the starting point every later iteration must beat.
 Uses the organizers' own FM implementation, untouched.
+
+Contract note: `run(splits)` receives the harness's restricted splits — test
+rows arrive with their label stripped to 0, so this code never sees a test
+label. Validation labels are available (the competition allows developing on
+train + validation), and the baseline uses them exactly as the organizers'
+own script does: early stopping on validation primary.
 """
 
 import sys
@@ -15,17 +21,16 @@ HYPOTHESIS = ("Baseline reproduction: organizers' FM (k=16, lr=0.001) through ou
               "harness — establishes the number to beat (valid primary ~0.6016).")
 
 
-def run(data_dir):
+def run(splits):
     import numpy as np
-    from data import load, encode
+    from data import encode
     from baseline import FM
     from evaluate import evaluate
 
-    splits = load(data_dir)
     enc, dim = encode(splits)
     Xtr, ytr, _ = enc["train"]
     Xva, yva, uva = enc["valid"]
-    Xte, yte, ute = enc["test"]
+    Xte, _, _ = enc["test"]  # test labels are stripped by the harness; unused
 
     model = FM(dim, k=16, lr=0.001, seed=0)
     rng = np.random.default_rng(0)

@@ -19,7 +19,7 @@ Rank each user's videos so the ones they'll watch long sit on top. Dataset: Kuai
 ## Integrity rules
 
 - `kuairand-starter-kit/` code (evaluate.py, data.py, baseline.py, submit.py) is organizer ground truth: hash-pinned, never edited. Same deny-rules + guard-hook setup as Track 3.
-- **Hidden-test discipline:** we physically hold the test labels, but the agent develops on train+validation ONLY. The iteration harness reports validation scores to the agent; test is scored once, at the end, on the designated final submission. Leak-guard asserts training data never crosses date 20220421.
+- **Hidden-test discipline (mechanically enforced by the harness):** solutions receive test rows with labels stripped — they cannot see a test label. Development feedback is validation-only; each run's test predictions are SEALED unscored, and `final` scores one designated sealed artifact exactly once (once-only + post-final refusals enforced, overrides journaled). The three organizer reference test scores reproduced at setup are their own published numbers (their explicit reproduce-the-baseline instruction) — no agent-designed solution's test metrics are ever revealed before the final.
 - Promotion: an iteration becomes current-best on validation improvement; Sol audits at checkpoints (harness before freeze; implausible jumps; final submission), never per iteration.
 
 ## The hypothesis queue (seeded from the organizers' own tested guidance)
