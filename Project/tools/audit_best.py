@@ -19,6 +19,17 @@ AUDIT_LOG_DIR = ROOT / "Project" / "audits" / "auto"
 PROMPT = """You are the independent auditor for this repository's autonomous ML experiment results (an automatic per-best audit). A new best experiment was recorded: journal entry {entry_id} — its packet is at {packet} (the full journal entry: hypothesis, complete solution source, validation metrics, source-scanner flags, provenance). Audit it blind: (1) is the validation score plausible for the described approach, or implausibly large? (2) does the solution source violate the honesty rules (touching raw test labels or raw data files instead of the sanitized copy, harness tampering, catching the timeout, exploiting validation)? (3) are the recorded fields internally consistent? (4) any violations of Project/PLAN.md or Project/RUNBOOK.md? Where it helps, consult outside sources. Review only, change nothing. Respond with JSON matching the provided schema."""
 
 
+def wait_for_idle_runner() -> None:
+    """Respect the one-runner-process rule (auditor finding): wait until no
+    benchmark process is active before touching shared records."""
+    for _ in range(60):
+        check = subprocess.run(["pgrep", "-f", "iterate.py (run|calibrate)"],
+                               capture_output=True, text=True)
+        if not check.stdout.strip():
+            return
+        time.sleep(10)
+
+
 def record(entry_id: str, verdict: str, log: Path) -> None:
     VERDICTS.parent.mkdir(parents=True, exist_ok=True)
     sha = hashlib.sha256(log.read_bytes()).hexdigest() if log.exists() else None
@@ -62,6 +73,8 @@ def main() -> int:
     except Exception as exc:  # noqa: BLE001
         print(f"[auto-audit] launcher error: {exc}")
         verdict = "JUDGE_ERROR"
+    sys.stdout.flush()  # the log must be on disk before its hash is recorded
+    wait_for_idle_runner()
     record(entry_id, verdict, log)
     print(f"[auto-audit] {time.strftime('%F %T')} recorded {verdict} for {entry_id}")
     return 0

@@ -62,3 +62,5 @@ Adopted into the plan (user-approved):
 ## 28 Aug 2026 16:48 — auto-audit per best experiment (user-directed, mechanically triggered)
 
 Mirror of Track 3's mechanism: Project/tools/best_watch.py (hook-invoked; detects a change in the best FINALIZABLE experiment using the bench's own rule) + Project/tools/audit_best.py (detached blind codex audit of the journal entry incl. full solution source; verdict appended to Project/audits/verdicts.jsonl; digest displays the audit column). Non-blocking; hook added to .claude/settings.json this setup era (disclosed), arms at the user's restart. First real firing: the baseline best's audit launched at build time.
+
+- **16:58 — first auto-audit completed: PASS** on the baseline best experiment (end-to-end with zero agent involvement). Wrapper fixes mirrored from Track 3 (flush-before-hash; wait-for-idle-bench before recording).
