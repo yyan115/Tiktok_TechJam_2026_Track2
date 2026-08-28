@@ -1,7 +1,11 @@
 #!/usr/bin/env python3
-"""Iteration harness ("the lab bench"), v0.2.0-unfrozen.
+"""Iteration harness ("the lab bench"), v0.5.0-unfrozen.
 
-v0.2.0 is a rebuild after the first codex audit (verdict NO, 8 findings):
+Version history: v0.2.0 rebuilt after codex audit round 1 (8 findings); v0.3.0
+after round 2; v0.4.0 after round 3 (sanitized dataset, exactly-once labels);
+v0.5.0 after round 4 (official-run scoping from the start-run marker,
+enforced sanitized hashes, ledger-identity namespaces). The v0.2.0 list below
+is retained as the foundation:
 
   F1  MECHANICAL leak-guard: the harness loads the data itself and hands
       solutions a restricted copy — test rows have their label zeroed out.
@@ -318,7 +322,8 @@ def convergence_state(entries: list) -> dict:
     # The 6h clock runs from the journaled run_start marker (written by
     # `start-run` when the official autonomous run begins); setup/baseline
     # iterations before the marker do not consume the allowance (codex round 2,
-    # finding 6). Falls back to the first iteration if no marker exists.
+    # finding 6). No marker => no official run: elapsed stays 0 and nothing
+    # official is counted (setup phase).
     elapsed = 0.0
     anchor = starts[0] if starts else None
     if anchor:
@@ -484,6 +489,10 @@ def cmd_run(args) -> int:
         if isinstance(exc, KeyboardInterrupt):
             raise
         if "hypothesis" not in entry:
+            # Best-effort recovery for crashes before module load: handles only
+            # a simple immediate-quote assignment (HYPOTHESIS = "..."). Multi-
+            # line/parenthesized/concatenated forms yield "" or a truncation —
+            # the full source is journaled either way, so nothing is lost.
             m = re.search(r"HYPOTHESIS\s*=\s*[\"\']([^\"\']*)", source_text)
             entry["hypothesis"] = m.group(1) if m else ""
         entry["valid_metrics"] = None
