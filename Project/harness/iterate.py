@@ -122,6 +122,9 @@ def verify_hashes(require_sanitized: bool = True) -> None:
             bad.append(name)
     if require_sanitized:
         sanitized = manifest.get("dataset_files_sanitized", {})
+        if not sanitized:
+            raise SystemExit("INTEGRITY FAILURE: manifest has no dataset_files_sanitized "
+                             "section — run `iterate.py sanitize-data` and record hashes")
         for name, expected in sanitized.items():
             p = ROOT / name
             if not p.exists() or sha256_file(p) != expected:
@@ -270,10 +273,11 @@ def append_journal(entry: dict) -> None:
 
 
 def convergence_state(entries: list) -> dict:
-    """Organizers' rule (epsilon=0.002, N=3) applied over SUCCESSFUL iteration
-    scores in order. Failed iterations count against the 50-cap but contribute
-    no score to the window (documented interpretation). The 6h ceiling runs
-    from the first iteration's timestamp."""
+    """Organizers' rule (epsilon=0.002, N=3) applied over SUCCESSFUL OFFICIAL
+    iteration scores in order. Official = at/after the first run_start marker;
+    earlier entries are setup phase and consume nothing. Failed official
+    iterations count against the 50-cap but contribute no score to the window
+    (documented interpretation). The 6h ceiling runs from the marker."""
     all_iterations = [e for e in entries if e.get("type") == "iteration"]
     starts = [e for e in entries if e.get("type") == "run_start"]
     if starts:
@@ -514,7 +518,8 @@ def cmd_final(args) -> int:
     --force (re-final) requires a non-empty reason and is recorded on the
     final entry itself."""
     verify_hashes()
-    lock_path = JOURNAL_PATH.parent / ".final.lock"
+    lock_path = JOURNAL_PATH.parent / (
+        ".final.lock" if _default_ledger() else f".{JOURNAL_PATH.stem}.final.lock")
     try:
         lock_fd = os.open(str(lock_path), os.O_CREAT | os.O_EXCL | os.O_WRONLY)
         os.close(lock_fd)

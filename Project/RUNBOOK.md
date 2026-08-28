@@ -41,9 +41,12 @@ is the organizers' row-tuple format with test labels zeroed. Scores: finite real
 row-aligned; only relative order matters. Full source is journaled verbatim per run.
 
 ## Recovery / gotchas
-- A failed iteration still journals (error recorded, counts against the 50-cap, no score).
-  That's by design — recovery evidence is graded.
-- The 6h clock runs from the first journaled iteration's timestamp.
+- A failed OFFICIAL iteration still journals (error recorded, counts against the 50-cap,
+  no score) — recovery evidence is graded. Setup-phase entries (before `start-run`)
+  consume nothing.
+- The 6h clock, the 50-iteration budget, the convergence window, and the validation-best
+  all start at the FIRST `start-run` marker. Nothing official exists before it — place
+  the marker BEFORE the first optimization iteration.
 - The elapsed/converged state is printed by `log` — check it before each run.
 - Enforcement layers, honestly ranked: (1) deny rules in `.claude/settings.json` — the lock;
   (2) committed hashes + git history — tampering is visible; (3) the Bash guard hook — an

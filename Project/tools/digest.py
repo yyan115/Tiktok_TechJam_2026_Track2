@@ -52,9 +52,13 @@ def main() -> int:
     finalizable = [e for e in scored
                    if e.get("error") is None and e.get("sealed_test_scores")]
     best = None
-    if finalizable:
-        top = max(e["valid_metrics"]["primary"] for e in finalizable)
-        best = [e for e in finalizable if e["valid_metrics"]["primary"] == top][-1]
+    scored_official = [e for e in iterations if e.get("valid_metrics")]
+    pool = finalizable or scored_official  # mirror harness fallback exactly
+    if pool:
+        top = max(e["valid_metrics"]["primary"] for e in pool)
+        best = [e for e in pool if e["valid_metrics"]["primary"] == top][-1]
+        if not finalizable:
+            print("(note: best is NOT yet finalizable — no sealed, error-free entry)")
 
     print("# JOURNAL DIGEST (read-only view; source of truth = JOURNAL.jsonl)\n")
     if malformed:
