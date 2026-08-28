@@ -62,7 +62,7 @@ import time
 import types
 from pathlib import Path
 
-HARNESS_VERSION = "0.4.0-unfrozen"
+HARNESS_VERSION = "0.5.0-unfrozen"
 
 ROOT = Path(__file__).resolve().parents[2]
 KIT = ROOT / "kuairand-starter-kit"
@@ -71,10 +71,23 @@ MANIFEST_PATH = ROOT / "Project" / "manifest.json"
 RESULTS_DIR = ROOT / "Project" / "results"
 
 
+def _default_ledger() -> bool:
+    return JOURNAL_PATH == RESULTS_DIR / "JOURNAL.jsonl"
+
+
 def sealed_dir() -> Path:
-    # Seals live NEXT TO the active ledger so scratch runs can never touch
-    # production artifacts (codex round 3, finding 5).
-    return JOURNAL_PATH.parent / "sealed"
+    # Namespaced by LEDGER IDENTITY, not just directory, so two scratch
+    # ledgers side by side (or one placed next to production) can never share
+    # or clobber artifacts (codex round 4). Production keeps its stable path.
+    if _default_ledger():
+        return RESULTS_DIR / "sealed"
+    return JOURNAL_PATH.parent / (JOURNAL_PATH.stem + "_sealed")
+
+
+def final_csv_path() -> Path:
+    if _default_ledger():
+        return RESULTS_DIR / "final_submission_test.csv"
+    return JOURNAL_PATH.parent / (JOURNAL_PATH.stem + "_final_submission_test.csv")
 
 EPSILON = 0.002     # organizers' convergence rule
 N_CONVERGE = 3
@@ -97,7 +110,7 @@ def sha256_bytes(b: bytes) -> str:
     return hashlib.sha256(b).hexdigest()
 
 
-def verify_hashes() -> None:
+def verify_hashes(require_sanitized: bool = True) -> None:
     manifest = json.loads(MANIFEST_PATH.read_text())
     bad = []
     for name, expected in manifest["files"].items():
@@ -107,6 +120,12 @@ def verify_hashes() -> None:
         p = ROOT / name
         if not p.exists() or sha256_file(p) != expected:
             bad.append(name)
+    if require_sanitized:
+        sanitized = manifest.get("dataset_files_sanitized", {})
+        for name, expected in sanitized.items():
+            p = ROOT / name
+            if not p.exists() or sha256_file(p) != expected:
+                bad.append(name + " (run `iterate.py sanitize-data` to regenerate)")
     if bad:
         raise SystemExit(f"INTEGRITY FAILURE: organizer/dataset files changed or missing: {bad}")
 
@@ -255,22 +274,40 @@ def convergence_state(entries: list) -> dict:
     scores in order. Failed iterations count against the 50-cap but contribute
     no score to the window (documented interpretation). The 6h ceiling runs
     from the first iteration's timestamp."""
-    iteration_entries = [e for e in entries if e.get("type") == "iteration"]
+    all_iterations = [e for e in entries if e.get("type") == "iteration"]
+    starts = [e for e in entries if e.get("type") == "run_start"]
+    if starts:
+        marker_id = starts[0]["entry_id"]
+        seen = False
+        official = []
+        for e in entries:
+            if e.get("entry_id") == marker_id:
+                seen = True
+            if seen and e.get("type") == "iteration":
+                official.append(e)
+        iteration_entries = official
+    else:
+        # No official run yet: everything so far is SETUP. Budgets and
+        # convergence bind the official run only (organizers' "50 iterations
+        # per benchmark run"); setup history stays in the journal but does not
+        # consume the budget or trigger convergence (codex round 4).
+        iteration_entries = []
+    setup_iterations = len(all_iterations) - len(iteration_entries)
     primaries = [e["valid_metrics"]["primary"] for e in iteration_entries
                  if e.get("valid_metrics")]
-    best = max(primaries) if primaries else None
     # best_entry_id points at the best FINALIZABLE entry (error-free + sealed,
     # last among tied maxima) so the final gate and the digest agree; falls
     # back to any scored entry when nothing is finalizable yet.
+    best = None
     best_entry_id = None
-    if best is not None:
+    if primaries:
         candidates = [e for e in iteration_entries
                       if e.get("valid_metrics") and e.get("error") is None
                       and e.get("sealed_test_scores")]
         pool = candidates or [e for e in iteration_entries if e.get("valid_metrics")]
-        top = max(e["valid_metrics"]["primary"] for e in pool)
+        best = max(e["valid_metrics"]["primary"] for e in pool)
         best_entry_id = [e for e in pool
-                         if e["valid_metrics"]["primary"] == top][-1]["entry_id"]
+                         if e["valid_metrics"]["primary"] == best][-1]["entry_id"]
     converged = False
     if len(primaries) > N_CONVERGE:
         converged = max(primaries[-N_CONVERGE:]) <= max(primaries[:-N_CONVERGE]) + EPSILON
@@ -279,8 +316,7 @@ def convergence_state(entries: list) -> dict:
     # iterations before the marker do not consume the allowance (codex round 2,
     # finding 6). Falls back to the first iteration if no marker exists.
     elapsed = 0.0
-    starts = [e for e in entries if e.get("type") == "run_start"]
-    anchor = starts[0] if starts else (iteration_entries[0] if iteration_entries else None)
+    anchor = starts[0] if starts else None
     if anchor:
         try:
             first = time.mktime(time.strptime(
@@ -290,11 +326,13 @@ def convergence_state(entries: list) -> dict:
             pass
     return {
         "iterations_used": len(iteration_entries),
+        "setup_iterations": setup_iterations,
+        "official_run_started": bool(starts),
         "iteration_cap": ITERATION_CAP,
         "best_valid_primary": best,
         "best_entry_id": best_entry_id,
         "converged": converged,
-        "elapsed_seconds": round(elapsed, 1),
+        "elapsed_seconds": elapsed,  # raw, ungated by rounding (codex round 4)
         "elapsed_hours": round(elapsed / 3600, 2),
         "wall_ceiling_hours": WALL_CEILING_S / 3600,
     }
@@ -324,7 +362,10 @@ SUSPICIOUS_SOURCE_PATTERNS = [
     # solution must not catch the harness timeout).
     r"data\s*\.\s*load|from\s+data\s+import\s+load",
     r"_test_labels", r"_getframe", r"inspect\.",
-    r"KuaiRand-Pure/data/", r"open\s*\(",
+    r"KuaiRand-Pure/data/",
+    r"['\"]data['\"]",          # path-join forms: Path(...)/'data'/...
+    r"read_csv|loadtxt|genfromtxt",  # tabular readers aimed at files
+    r"log_standard|log_random",      # raw log filenames (sanitized dir is fine via 'data_sanitized')
     r"\bsignal\b", r"TimeoutError",
 ]
 
@@ -364,7 +405,7 @@ def cmd_run(args) -> int:
     if final_exists(entries) and not args.post_final:
         raise SystemExit("a final entry exists — development is closed. "
                          "(--post-final overrides; needs --override-reason)")
-    if state["iterations_used"] >= ITERATION_CAP:
+    if state["official_run_started"] and state["iterations_used"] >= ITERATION_CAP:
         raise SystemExit("iteration cap (50) reached — no further runs allowed")
     if state["converged"] and not args.continue_past_convergence:
         raise SystemExit(
@@ -375,12 +416,8 @@ def cmd_run(args) -> int:
         raise SystemExit("6h wall-clock ceiling exceeded — designate a final")
 
     entry = {
-        "entry_id": time.strftime("%Y%m%d-%H%M%S"),
-        "timestamp": time.strftime("%Y-%m-%dT%H:%M:%S%z"),
-        "type": "iteration",
+        **base_entry_fields("iteration"),
         "iteration": state["iterations_used"] + 1,
-        "harness_version": HARNESS_VERSION,
-        "harness_sha256": sha256_file(Path(__file__).resolve()),
         **git_state(),
         "llm_tokens_reported": args.tokens,
         "overrides": {
@@ -391,6 +428,7 @@ def cmd_run(args) -> int:
         "timeout_seconds": args.timeout,
         "manifest_sha256": sha256_file(MANIFEST_PATH),
         "leak_guard": "mechanical: test labels stripped before solution code runs",
+        "phase": "official" if state["official_run_started"] else "setup",
     }
 
     # Provenance survives every failure path: source read + hashed pre-exec.
@@ -441,7 +479,9 @@ def cmd_run(args) -> int:
     except BaseException as exc:  # noqa: BLE001 — recovery evidence IS graded
         if isinstance(exc, KeyboardInterrupt):
             raise
-        entry.setdefault("hypothesis", "")
+        if "hypothesis" not in entry:
+            m = re.search(r"HYPOTHESIS\s*=\s*[\"\']([^\"\']*)", source_text)
+            entry["hypothesis"] = m.group(1) if m else ""
         entry["valid_metrics"] = None
         entry["error"] = f"{type(exc).__name__}: {exc}"
     finally:
@@ -521,9 +561,7 @@ def cmd_final(args) -> int:
 
         # Marker BEFORE scoring: even a crash leaves evidence test was consumed.
         append_journal({
-            "entry_id": time.strftime("%Y%m%d-%H%M%S") + "-pending",
-            "timestamp": time.strftime("%Y-%m-%dT%H:%M:%S%z"),
-            "type": "final_pending",
+            **base_entry_fields("final_pending"),
             "designated_entry": args.entry,
             "forced": bool(args.force),
             "not_best": bool(args.not_best),
@@ -533,7 +571,7 @@ def cmd_final(args) -> int:
 
         trusted = Trusted()
         arr = trusted.load_sealed(seal["path"], seal["sha256"])
-        csv_path = JOURNAL_PATH.parent / "final_submission_test.csv"
+        csv_path = final_csv_path()
         trusted.write_and_check_submission(csv_path, arr)
         # CSV parity (codex round 2, finding 4): the journaled metric is
         # computed from the checker-PARSED CSV values — the exact bytes that
@@ -541,15 +579,10 @@ def cmd_final(args) -> int:
         metrics = trusted.score_csv(csv_path)
 
         entry = {
-            "entry_id": time.strftime("%Y%m%d-%H%M%S"),
-            "timestamp": time.strftime("%Y-%m-%dT%H:%M:%S%z"),
-            "type": "final",
+            **base_entry_fields("final"),
             "designated_entry": args.entry,
             "designated_solution": {k: v for k, v in target.get("solution", {}).items()
                                     if k != "source"},
-            "harness_version": HARNESS_VERSION,
-            "harness_sha256": sha256_file(Path(__file__).resolve()),
-            "manifest_sha256": sha256_file(MANIFEST_PATH),
             **git_state(),
             "valid_metrics": target.get("valid_metrics"),
             "test_metrics_from_submitted_csv": metrics,
@@ -591,9 +624,11 @@ def cmd_sanitize(args) -> int:
     import shutil
     SANITIZED_DIR.mkdir(parents=True, exist_ok=True)
     report = {}
+    LOGS_TO_SANITIZE = {"log_standard_4_22_to_5_08_pure.csv",
+                        "log_random_4_22_to_5_08_pure.csv"}
     for f in sorted(DATA_DIR.iterdir()):
         out = SANITIZED_DIR / f.name
-        if f.name == "log_standard_4_22_to_5_08_pure.csv":
+        if f.name in LOGS_TO_SANITIZE:
             with open(f, newline="") as src, open(out, "w", newline="") as dst:
                 reader = _csv.DictReader(src)
                 writer = _csv.DictWriter(dst, fieldnames=reader.fieldnames)
@@ -628,12 +663,8 @@ def cmd_log(args) -> int:
 
 
 def cmd_intervention(args) -> int:
-    append_journal({
-        "entry_id": time.strftime("%Y%m%d-%H%M%S"),
-        "timestamp": time.strftime("%Y-%m-%dT%H:%M:%S%z"),
-        "type": "intervention",
-        "description": args.describe,
-    })
+    append_journal({**base_entry_fields("intervention"),
+                    "description": args.describe})
     print("intervention recorded")
     return 0
 
@@ -684,7 +715,7 @@ def main() -> int:
         print("hashes OK (organizer files + dataset)")
         return 0
     if args.cmd == "sanitize-data":
-        verify_hashes()
+        verify_hashes(require_sanitized=False)
         return cmd_sanitize(args)
     if args.cmd == "start-run":
         existing = [e for e in read_journal(fail_closed=True)

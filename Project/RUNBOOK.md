@@ -49,3 +49,5 @@ row-aligned; only relative order matters. Full source is journaled verbatim per 
   (2) committed hashes + git history — tampering is visible; (3) the Bash guard hook — an
   accident seatbelt, never the load-bearing protection.
 - Fresh session? `Project/memory/STATE.md` auto-injects on start; CLAUDE.md points everywhere.
+
+> Reviewer-endorsed status of the local test split, verbatim: "not pristine — a bounded organizer-reference exception".

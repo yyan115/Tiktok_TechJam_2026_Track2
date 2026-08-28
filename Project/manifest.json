@@ -42,12 +42,12 @@
     "kuairand-starter-kit/KuaiRand-Pure/data/video_features_basic_pure.csv": "a6f7ee02684c5777422306cdc416e170302288aa89aca9dfea995edbd625bcc2"
   },
   "dataset_files_sanitized": {
-    "kuairand-starter-kit/KuaiRand-Pure/data_sanitized/log_random_4_22_to_5_08_pure.csv": "60b80994da969cd53da4d50c37ba3dafd6fb185df804c92c8410df34845a9d2c",
+    "kuairand-starter-kit/KuaiRand-Pure/data_sanitized/log_random_4_22_to_5_08_pure.csv": "bf15838d9e44eefeda5300d1603576a1637d741313dae9a1a893e0202b25c381",
     "kuairand-starter-kit/KuaiRand-Pure/data_sanitized/log_standard_4_08_to_4_21_pure.csv": "5bb6eb0b3d9f47e5436cb5dc82ee1899b845ebf9750a5560b801e929e18bd41c",
     "kuairand-starter-kit/KuaiRand-Pure/data_sanitized/log_standard_4_22_to_5_08_pure.csv": "d9f82209f88f861b5ec73f1bf00e2a325845471ad14b14b48355e774e7dcde1c",
     "kuairand-starter-kit/KuaiRand-Pure/data_sanitized/user_features_pure.csv": "dc729a656301b4c6d07f713fe41d05ec9bfaab670b90e531c70037caf033c011",
     "kuairand-starter-kit/KuaiRand-Pure/data_sanitized/video_features_basic_pure.csv": "a6f7ee02684c5777422306cdc416e170302288aa89aca9dfea995edbd625bcc2",
     "kuairand-starter-kit/KuaiRand-Pure/data_sanitized/video_features_statistic_pure.csv": "d5c9e237ef2c6c1fc0e7f27e952f215d6626ecd934b01a6c53ecfcc72540f6b6"
   },
-  "_sanitized_note": "Deterministically regenerable via `iterate.py sanitize-data`: identical to raw data except all feedback columns (incl. play_time_ms) are zeroed on test-date rows (>= 20220429). This is the SANCTIONED path for solutions needing file-level access to auxiliary signals; the raw data dir is scanner-flagged. Historical status of the raw local test split: not pristine \u2014 a bounded organizer-reference exception (reviewer-endorsed wording)."
+  "_sanitized_note": "Deterministically regenerable via `iterate.py sanitize-data`: identical to raw data except all feedback columns (incl. play_time_ms) are zeroed on test-date rows (>= 20220429) in BOTH the standard and the randomized logs. This is the SANCTIONED path for solutions needing file-level access to auxiliary signals; the raw data dir is scanner-flagged. Historical status of the raw local test split: not pristine \u2014 a bounded organizer-reference exception (reviewer-endorsed wording)."
 }

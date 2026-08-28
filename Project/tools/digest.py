@@ -29,7 +29,21 @@ def main() -> int:
         except Exception:
             malformed += 1
 
-    iterations = [e for e in entries if e.get("type") == "iteration"]
+    all_iterations = [e for e in entries if e.get("type") == "iteration"]
+    starts = [e for e in entries if e.get("type") == "run_start"]
+    # Mirror the harness's official-run scoping exactly: budget/best count from
+    # the FIRST start-run marker; earlier entries are setup phase.
+    if starts:
+        seen = False
+        iterations = []
+        for e in entries:
+            if e.get("entry_id") == starts[0]["entry_id"]:
+                seen = True
+            if seen and e.get("type") == "iteration":
+                iterations.append(e)
+    else:
+        iterations = []
+    setup = [e for e in all_iterations if e not in iterations]
     finals = [e for e in entries if e.get("type") in ("final", "final_pending")]
     interventions = [e for e in entries if e.get("type") == "intervention"]
     scored = [e for e in iterations if e.get("valid_metrics")]
@@ -45,13 +59,15 @@ def main() -> int:
     print("# JOURNAL DIGEST (read-only view; source of truth = JOURNAL.jsonl)\n")
     if malformed:
         print(f"!! {malformed} malformed journal line(s) — investigate before trusting\n")
-    print(f"iterations used: {len(iterations)}/50 | interventions: {len(interventions)} "
-          f"| finals: {len(finals)}")
+    print(f"OFFICIAL iterations used: {len(iterations)}/50 (run "
+          f"{'started' if starts else 'NOT started — all entries below are setup'}) | "
+          f"setup iterations: {len(setup)} | interventions: {len(interventions)} | "
+          f"finals: {len(finals)}")
     if best:
         print(f"BEST: {best['entry_id']} primary={best['valid_metrics']['primary']:.4f} "
               f"({best.get('solution', {}).get('path', '?')})")
     print()
-    for e in iterations:
+    for e in (iterations or setup):
         vm = e.get("valid_metrics")
         outcome = (f"primary {vm['primary']:.4f}" if vm
                    else f"ERROR: {str(e.get('error'))[:60]}")
