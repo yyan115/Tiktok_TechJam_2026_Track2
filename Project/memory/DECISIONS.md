@@ -97,3 +97,10 @@ Token-metering methodology, standing: per-iteration --tokens are self-reported e
 - **Blocked on user:** designating it15 for the once-only `final` (Authority: user holds final-submission sign-off).
 - Same honest caveat as Track 3: locks/hooks arm at the next session start (user on remote access); until then, hash verification + git history + behavioral compliance are the active layers.
 - From this moment: no edits to Project/harness/** or any protected file by Claude's tools; changes only via a formal re-freeze.
+
+## 29 Aug 2026 01:55 — FINAL SCORED (user's explicit in-session go: "ok screw it we're done. lets run it")
+
+- Once-only `final` executed on it15 (20260828-204207-8fb9a6): **hidden-test primary 0.595879** (GAUC 0.6625624 / nDCG@5 0.5291955) vs published baseline 0.5946 → **delta +0.0013**. Validation +0.0015 transferred to test +0.0013 — the selection on validation was honest.
+- Submission CSV written and validated with the organizers' own checker (170,588 rows, alignment OK; sha 45b221e5d3ded00d…). Journal holds final_pending + final entries; the once-only rule is now consumed.
+- Who pressed the button: the agent, on the user's explicit go — matching slide 9's "computed once from the submission the agent marks as final"; the user's sign-off is recorded here per the PLAN's authority split.
+- Next: packaging (report from journal, judge-facing README, merge to main, organizers' submission flow) before 1 Sep 12:00 noon.

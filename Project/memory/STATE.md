@@ -1,6 +1,11 @@
 # STATE — read this first in every session
 
-Updated: 2026-08-29 01:25 (OFFICIAL RUN CLOSED at it15; awaiting user sign-off on `final`)
+Updated: 2026-08-29 01:55 (FINAL SCORED: hidden-test primary 0.595879, delta +0.0013 over baseline; submission CSV checked; packaging is next)
+
+## FINAL (29 Aug 01:53, user sign-off in-session) — the run's official result
+- `final` on it15 (20260828-204207-8fb9a6): **test primary 0.595879** (GAUC 0.6626 / nDCG@5 0.5292) vs baseline 0.5946 → **delta +0.0013**. Valid→test transfer: +0.0015→+0.0013 (no validation overfit).
+- Submission: Project/results/final_submission_test.csv (sha 45b221e5…), organizers' checker PASSED (170,588 rows). Once-only final consumed; harness now refuses further runs (post-final overrides would be journaled).
+- Remaining to ship by 1 Sep 12:00 noon: report from the journal, judge-facing README (user applies), merge initial-architecture → main, submission per organizers' process, video (user's choice).
 
 ## THE OFFICIAL RUN (28 Aug 19:49 → 20:53, CLOSED) — read this block first
 - start-run marker 19:49:43; 15/50 iterations; 0 interventions; ~471k self-reported tokens; active wall ~1.05h. Full narrative: QUEUE.md ritual log + DECISIONS 20:28 & 01:25 entries; per-iteration truth: the journal.
