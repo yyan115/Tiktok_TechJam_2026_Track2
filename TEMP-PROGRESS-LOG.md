@@ -1,34 +1,46 @@
 # TEMP — read this when you're back (Track 2)
 
-*Written 28 Aug ~09:30 by Claude before you closed the session. Delete this file once done.*
+*Rewritten 28 Aug ~13:50 (supersedes the overnight version). Delete once done.
+Live counts always come from `python3 Project/tools/digest.py` — currently:
+0/50 OFFICIAL iterations used (the official run hasn't started; 5 setup runs
+are journaled as history and consume nothing).*
 
 ## Where things stand (10-second version)
 
-Fully set up and committed on branch `initial-architecture` (pushed to GitHub).
-The dataset is downloaded, the organizers' three reference scores all reproduce on your
-machine (their baseline: 0.5953 vs their published 0.5946 — within their own noise),
-and our experiment bench ran its first logged experiment successfully. The 50-experiment
-competition budget has 49 left.
+Setup is fully built AND battle-tested: the experiment bench went through SEVEN rounds of
+independent AI review (verdicts in Project/memory/DECISIONS.md — every round found real
+flaws that got fixed: test-label leaks made mechanically impossible, score-the-test-once
+enforced in code, budgets/clock enforced, sanitized dataset created for file-level feature
+work). The executable bench has been "freeze-ready" since round 5; the last rounds were
+documentation consistency. Latest round's verdict file: ask Claude "review status".
 
 ## YOUR TO-DO, in order
 
-**1. Nothing technical.** Setup is done.
+1. **Freeze the bench** (same ceremony as Track 3): open `.claude/settings.json` IN THIS
+   REPO, add inside `"deny": [...]` (comma after the previous entry):
 
-**2. After you've done Track 3's freeze steps** (see that repo's TEMP file), just say
-**"go track 2"** in a Claude session opened in THIS folder (or tell the Track 3 session —
-it knows the way). What happens then, automatically:
-   - the second AI (codex) reviews this repo's experiment bench, same ceremony as Track 3's referee
-   - you say "freeze approved" for it (one line in this repo's `.claude/settings.json`, Claude will show you)
-   - then the autonomous run starts: the agent works through its experiment queue
-     (best ideas first, taken from the organizers' own published hints), logging every
-     attempt, until scores stop improving. No babysitting needed — that's literally
-     what gets graded.
+   ```
+   "Edit(Project/harness/**)",
+   "Write(Project/harness/**)"
+   ```
 
-**3. That's it until packaging day** (report + 3-min video + Devpost form, same as Track 3).
+   Then restart the Claude session, have it try to edit `Project/harness/iterate.py`
+   (must be blocked), and say **"freeze approved track 2"**.
 
-## What the plan is
+2. Say **"go track 2"** — Claude journals the official `start-run` marker (the 50-iteration
+   budget and 6-hour clock begin THERE) and the autonomous experiment run starts: best
+   ideas first from the organizers' own hint list, every attempt journaled, no babysitting.
 
-Beat the official baseline score (0.5946) on their hidden test set, with a fully
-autonomous, fully logged run. The experiment queue and all rules: `Project/PLAN.md`.
-Things we must never waste tries on (the organizers already tested them): `Project/memory/LESSONS.md`.
-Current status always in: `Project/memory/STATE.md`.
+3. That's it until packaging day (report + 3-min video + Devpost form).
+
+## Known limitation you may care about
+
+The pasted problem statement in README.md contains the organizers' own contradictory
+metrics row ("Limits" says NDCG@10/Recall@50/click) — the shipped scoring code is
+authoritative (GAUC + nDCG@5, long_view). README is your file; annotate it if you like.
+
+## What the plan is after your steps
+
+Autonomous run to convergence → designate the validation-best → score the hidden test
+ONCE via the enforced `final` → package. Full plan: `Project/PLAN.md`. Status:
+`Project/memory/STATE.md`. Operations: `Project/RUNBOOK.md`.
