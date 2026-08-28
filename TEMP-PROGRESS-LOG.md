@@ -1,13 +1,13 @@
 # TEMP — read this when you're back (Track 2)
 
-*Rewritten 28 Aug 13:20 (supersedes the overnight version; time from the system clock). Delete once done.
+*Rewritten 28 Aug 13:24 (supersedes the overnight version; time from the system clock). Delete once done.
 Live counts always come from `python3 Project/tools/digest.py` — currently:
 0/50 OFFICIAL iterations used (the official run hasn't started; 5 setup runs
 are journaled as history and consume nothing).*
 
 ## Where things stand (10-second version)
 
-Setup is fully built AND battle-tested: the experiment bench has gone through TEN rounds of
+Setup is fully built AND battle-tested: the experiment bench has gone through ELEVEN rounds of
 independent AI review so far, each documented in Project/memory/DECISIONS.md — every round
 found real flaws that got fixed: test-label leaks made mechanically impossible, score-the-test-once
 enforced in code, budgets/clock enforced, sanitized dataset created for file-level feature
