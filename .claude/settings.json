@@ -1,0 +1,44 @@
+{
+  "permissions": {
+    "deny": [
+      "Edit(kuairand-starter-kit/**)",
+      "Write(kuairand-starter-kit/**)",
+      "Edit(kuairand-starter-kit.zip)",
+      "Write(kuairand-starter-kit.zip)",
+      "Edit(README.md)",
+      "Write(README.md)",
+      "Edit(Project/manifest.json)",
+      "Write(Project/manifest.json)",
+      "Edit(Project/results/**)",
+      "Write(Project/results/**)",
+      "Edit(.claude/**)",
+      "Write(.claude/**)"
+    ]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"$CLAUDE_PROJECT_DIR/.claude/hooks/guard_bash.py\"",
+            "timeout": 10,
+            "statusMessage": "Checking protected files guard"
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo '=== PROJECT STATE (auto-injected by SessionStart hook; read Project/PLAN.md for the full plan) ==='; cat \"$CLAUDE_PROJECT_DIR/Project/memory/STATE.md\" 2>/dev/null || echo 'STATE.md not found'",
+            "timeout": 10
+          }
+        ]
+      }
+    ]
+  }
+}
