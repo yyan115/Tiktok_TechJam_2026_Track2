@@ -104,3 +104,9 @@ Token-metering methodology, standing: per-iteration --tokens are self-reported e
 - Submission CSV written and validated with the organizers' own checker (170,588 rows, alignment OK; sha 45b221e5d3ded00d…). Journal holds final_pending + final entries; the once-only rule is now consumed.
 - Who pressed the button: the agent, on the user's explicit go — matching slide 9's "computed once from the submission the agent marks as final"; the user's sign-off is recorded here per the PLAN's authority split.
 - Next: packaging (report from journal, judge-facing README, merge to main, organizers' submission flow) before 1 Sep 12:00 noon.
+
+## 29 Aug 2026 — cross-track harness finding folded in (from Track 3's post-mortem); report framing corrected
+
+- Track 3 discovered mid-run that the shared harness architecture audits HONESTY but contains no mechanism auditing INTELLIGENCE (direction, research depth). Track 2 self-examined and confirms the milder case: per-idea searches were single-query skims, CWM (the organizers' own reference) was never read in depth, no dataset-specific literature search was ever run, and the strategy review fired once pre-run and never again. Full evidence + fixes recorded as LESSONS.md #15.
+- Consequence adopted for packaging: the report claims convergence RELATIVE TO ITS QUEUE, never exhaustion of the idea space; untried directions (tree ensembles, heavier sequence models, deeper dataset-specific features) are listed as limitations; the harness-gap self-diagnosis with journal evidence becomes part of the innovation narrative.
+- Scope ruling: no re-run for Track 2 — the once-only final is consumed and its test score has been seen, so any post-hoc run could not be honestly designated official (that would be selection-after-peeking). Track 3, still mid-flight, carries the mechanical fixes; Track 2 carries the honest write-up.
