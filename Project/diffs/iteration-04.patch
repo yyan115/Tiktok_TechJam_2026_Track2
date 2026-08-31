@@ -1,0 +1,145 @@
+--- Project/solutions/s002_fm_bpr_warm_fixed.py
++++ Project/solutions/s003_fm_listwise_warm.py
+@@ -1 +1 @@
+-"""Iteration: BPR pairwise fine-tune on the warm-started FM.
++"""Iteration: in-user LISTWISE softmax fine-tune on the warm-started FM.
+@@ -3,13 +3,12 @@
+-Why (research-grounded): the metric is within-user ranking (GAUC counts
+-pos>neg pairs inside each user; nDCG@5 rewards the same order), but the
+-baseline trains a POINTWISE classifier. Pairwise objectives (BPR; FM-Pair,
+-arXiv:1812.08254) are the literature's standard fix on implicit feedback.
+-Our twist: negatives are sampled from the SAME user's logged impressions —
+-each training pair is exactly a pair GAUC scores. Pure user-side terms
+-cancel in the pair difference, mirroring the organizers' proof that
+-user-constant features cannot move this metric.
+-
+-Risk control: phase 1 reproduces the official FM warm start (identical to
+-s000, seed 0); phase 2 fine-tunes with BPR at a lower LR under a fresh Adam
+-state; the returned model is the GLOBAL best validation state across both
+-phases, so this iteration cannot score below the baseline it warms from.
++Why (research-grounded): softmax cross-entropy over each user's impression
++list is a proven bound on nDCG under binary relevance (Bruch et al., ICTIR'19,
++Google Research), and nDCG@5 is our weak metric half (valid 0.536 vs ceiling
++0.697, while GAUC is already 0.667). Unlike BPR's uniform pair pressure
++(null result, LESSON 11), softmax jointly normalizes the WHOLE list, so
++gradient concentrates on positives that are currently ranked low — top-heavy,
++like the metric. Per-user equal weighting matches nDCG's per-user mean.
++
++Risk control (LESSON 10 applied): warm start = the official pointwise FM
++(identical to s000, seed 0); fine-tune under a fresh Adam at low LR; the
++champion state is saved AND restored by deep copy; returned model is the
++global validation best across both phases — the baseline is the floor.
+@@ -27 +26 @@
+-HYPOTHESIS = "RECOVERY of s001: same BPR pairwise fine-tune, fixing the state-aliasing bug (restore without .copy() let phase-2 training mutate the saved champion arrays; s001 returned a post-peak state and scored 0.6008 under its own floor). Saves/restores now deep-copy."
++HYPOTHESIS = "In-user listwise softmax fine-tune on warm FM: softmax CE over each user's impressions is a proven nDCG bound (Bruch et al. ICTIR'19) and targets our weak half (nDCG@5 0.536, ceiling 0.697); per-user equal weighting mirrors nDCG's mean; deep-copied champion keeps the baseline floor."
+@@ -29,4 +28,4 @@
+-FT_LR = 5e-4
+-FT_EPOCHS = 15
+-FT_PATIENCE = 3
+-BATCH_PAIRS = 8192
++FT_LR = 2e-4
++FT_EPOCHS = 25
++FT_PATIENCE = 4
++USERS_PER_BATCH = 1024
+@@ -38 +36,0 @@
+-    from baseline import FM, sigmoid
+@@ -39,0 +38 @@
++    from baseline import FM
+@@ -62,3 +60,0 @@
+-    # Restore by COPY: the saved champion must never alias the live model
+-    # (s001's bug — phase 2 mutated the restored arrays in place, corrupting
+-    # the very state it was supposed to preserve).
+@@ -68,3 +64,2 @@
+-    # ---- phase 2: within-user BPR pairs on the warmed representation --------
+-    # Index train impressions per user; only users with >=1 pos AND >=1 neg
+-    # can form pairs — exactly the users whose order GAUC can score.
++    # ---- phase 2: listwise softmax CE over each user's impression list ------
++    # Usable users = mixed (>=1 pos and >=1 neg) — the ones the metric can move.
+@@ -72,5 +67,6 @@
+-    for i, (u, label) in enumerate(zip(utr, ytr)):
+-        by_user.setdefault(u, ([], []))[0 if label > 0.5 else 1].append(i)
+-    pos_rows, offs, cnts, neg_flat = [], [], [], []
+-    for u, (pos, neg) in by_user.items():
+-        if not pos or not neg:
++    for i, label in enumerate(ytr):
++        by_user.setdefault(utr[i], []).append(i)
++    seg_rows, seg_off, seg_len, seg_npos = [], [], [], []
++    for u, rows in by_user.items():
++        npos = int(sum(1 for i in rows if ytr[i] > 0.5))
++        if npos == 0 or npos == len(rows):
+@@ -78,10 +74,10 @@
+-        off = len(neg_flat)
+-        neg_flat.extend(neg)
+-        for i in pos:
+-            pos_rows.append(i)
+-            offs.append(off)
+-            cnts.append(len(neg))
+-    pos_rows = np.asarray(pos_rows, dtype=np.int64)
+-    offs = np.asarray(offs, dtype=np.int64)
+-    cnts = np.asarray(cnts, dtype=np.int64)
+-    neg_flat = np.asarray(neg_flat, dtype=np.int64)
++        seg_off.append(len(seg_rows))
++        seg_rows.extend(rows)
++        seg_len.append(len(rows))
++        seg_npos.append(npos)
++    seg_rows = np.asarray(seg_rows, dtype=np.int64)
++    seg_off = np.asarray(seg_off, dtype=np.int64)
++    seg_len = np.asarray(seg_len, dtype=np.int64)
++    seg_npos = np.asarray(seg_npos, dtype=np.float32)
++    n_users = len(seg_len)
++    is_pos_flat = (ytr[seg_rows] > 0.5).astype(np.float32)
+@@ -89,2 +84,0 @@
+-    # Fresh Adam state for the fine-tune (moments from the pointwise phase
+-    # describe a different loss surface).
+@@ -96 +90,4 @@
+-    def bpr_epoch():
++    # Positions vs rows: is_pos_flat/seg_npos are indexed by POSITION in
++    # seg_rows, while Xtr/model need the row indices seg_rows holds — the
++    # batch gathers positions first, then maps them to rows.
++    def listwise_epoch():
+@@ -98,11 +95,19 @@
+-        perm = rng.permutation(len(pos_rows))
+-        for s in range(0, len(perm), BATCH_PAIRS):
+-            b = perm[s:s + BATCH_PAIRS]
+-            p = pos_rows[b]
+-            draw = (rng.random(len(b)) * cnts[b]).astype(np.int64)
+-            n = neg_flat[offs[b] + draw]
+-            Xp, Xn = Xtr[p], Xtr[n]
+-            zp, Ep, Sp = model.logits(Xp)
+-            zn, En, Sn = model.logits(Xn)
+-            # L = -log sigmoid(zp - zn); dL/dzp = -sigmoid(zn - zp)
+-            g = (-sigmoid(zn - zp) / len(b)).astype(np.float32)
++        order = rng.permutation(n_users)
++        for s in range(0, n_users, USERS_PER_BATCH):
++            ks = order[s:s + USERS_PER_BATCH]
++            lens = seg_len[ks]
++            nb = len(ks)
++            pos_pieces = [np.arange(o, o + l) for o, l in zip(seg_off[ks], lens)]
++            posn = np.concatenate(pos_pieces)      # positions in seg_rows
++            idx = seg_rows[posn]                   # train row indices
++            boff = np.zeros(nb, dtype=np.int64)
++            np.cumsum(lens[:-1], out=boff[1:])
++            rep = np.repeat(np.arange(nb), lens)
++            X = Xtr[idx]
++            z, E, S = model.logits(X)
++            zmax = np.maximum.reduceat(z, boff)
++            p = np.exp(z - zmax[rep])
++            denom = np.add.reduceat(p, boff)
++            p = (p / denom[rep]).astype(np.float32)
++            gz = ((p - is_pos_flat[posn] / np.repeat(seg_npos[ks], lens)) / nb
++                  ).astype(np.float32)
+@@ -110,4 +115,2 @@
+-            np.add.at(gW, Xp, g[:, None])
+-            np.add.at(gW, Xn, -g[:, None])
+-            np.add.at(gV, Xp, g[:, None, None] * (Sp[:, None, :] - Ep))
+-            np.add.at(gV, Xn, -g[:, None, None] * (Sn[:, None, :] - En))
++            np.add.at(gW, X, gz[:, None])
++            np.add.at(gV, X, gz[:, None, None] * (S[:, None, :] - E))
+@@ -121 +123,0 @@
+-            # bias cancels in pair differences; left untouched.
+@@ -125 +127 @@
+-        bpr_epoch()
++        listwise_epoch()
+@@ -127 +129 @@
+-        print(f"[bpr] epoch {ep:2d} valid primary {primary:.6f} "
++        print(f"[listwise] epoch {ep:2d} valid primary {primary:.6f} "

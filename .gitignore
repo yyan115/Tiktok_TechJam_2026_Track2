@@ -2,6 +2,7 @@
 #   cd kuairand-starter-kit && wget https://zenodo.org/records/10439422/files/KuaiRand-Pure.tar.gz && tar xzf KuaiRand-Pure.tar.gz
 kuairand-starter-kit/KuaiRand-Pure/
 kuairand-starter-kit/KuaiRand-Pure.tar.gz
+.venv/
 __pycache__/
 *.pyc
 Project/results/sealed/

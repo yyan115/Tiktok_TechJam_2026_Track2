@@ -1,0 +1,115 @@
+--- Project/solutions/s013_grand_blend.py
++++ Project/solutions/s014_blend_polish.py
+@@ -1 +1 @@
+-"""Iteration: grand score-level blend of the run's diverse champions.
++"""Iteration: final polish of the blend — more seeds, faithful aux member.
+@@ -3,11 +3,9 @@
+-it13 proved the mechanisms interfere when JOINTLY trained (stack < either
+-component); the classic remedy — and the queue's designed ender — is to
+-combine at the SCORE level. Components, each trained independently exactly
+-as their winning iterations defined them: (D) the 3-seed dual-gate DIN-lite
+-ensemble (it12, current best 0.6024), (F) a 3-seed ensemble of the official
+-pointwise FM baseline (architecture diversity), (A) the alpha=0.3 watch-ratio
+-aux model (label-side diversity, it6). Per split, each model's scores become
+-normalized ranks (scale-free); seeds average within a component; a SMALL
+-fixed candidate set of component weightings {D, D+F, 2D+F, D+F+A, 2D+F+A} is
+-scored on validation and the winner is returned — rank-averaging diverse
+-models is the standing cheap win from the plan, now applied once, at the end.
++Strict superset of it14's winner: (D) dual-gate DIN ensemble grows 3->5 seeds,
++(F) pointwise FM ensemble grows 3->5 seeds (variance reduction scales like
++1/sqrt(S)), and the aux member (A) is now the FAITHFUL it6 implementation
++(single combined Adam step per batch — it14's improvised two-phase variant
++scored 0.6006 vs it6's 0.6018 and lost every candidate race). The incumbent
++weighting 2D+F stays in the candidate set, so this iteration cannot select
++anything worse than a re-measurement of it14's champion. This is the last
++planned iteration: every mechanism family in the queue has been tried and
++characterized; after this, the run declares convergence honestly.
+@@ -24 +22 @@
+-HYPOTHESIS = "Grand rank-average blend of separately-trained diverse champions (3-seed dual-DIN + 3-seed pointwise FM + watch-ratio-aux model): it13 showed joint training interferes, so combine at the score level; small weighting set picked on validation."
++HYPOTHESIS = "Blend polish, strict superset of it14: 5-seed D and F ensembles (variance reduction) plus a faithful it6 aux member; incumbent 2D+F kept in the candidate set so the result cannot fall below a re-measurement of the current best. Final planned iteration before convergence declaration."
+@@ -253,0 +252,56 @@
++    def aux_one(seed, alpha=0.3):
++        """Faithful it6/s005: two heads, shared V, ONE combined Adam step per batch."""
++        k2, lr2, l22 = 16, 0.001, 1e-6
++        rngA = np.random.default_rng(seed)
++        Va = rngA.normal(0, 0.01, (dim, k2)).astype(np.float32)
++        Wm = np.zeros(dim, dtype=np.float32); Wx = np.zeros(dim, dtype=np.float32)
++        bm = np.float32(0.0); bx = np.float32(0.0)
++        mVa = np.zeros_like(Va); vVa = np.zeros_like(Va)
++        mWm = np.zeros_like(Wm); vWm = np.zeros_like(Wm)
++        mWx = np.zeros_like(Wx); vWx = np.zeros_like(Wx)
++        tA = 0
++        def inter_of(X):
++            E = Va[X]; S = E.sum(1)
++            return 0.5 * ((S ** 2).sum(1) - (E ** 2).sum((1, 2))), E, S
++        def pred_main(X, bs=200_000):
++            out = []
++            for i in range(0, len(X), bs):
++                it, _, _ = inter_of(X[i:i + bs])
++                out.append(bm + Wm[X[i:i + bs]].sum(1) + it)
++            return np.concatenate(out)
++        best, best_state, bad = -1.0, None, 0
++        for ep in range(1, 41):
++            idx = rngA.permutation(len(ytr))
++            for i in range(0, len(idx), 8192):
++                bt2 = idx[i:i + 8192]
++                X, y, p = Xtr[bt2], ytr[bt2], p_watch[bt2]
++                B = len(y)
++                it, E, S = inter_of(X)
++                zm = bm + Wm[X].sum(1) + it
++                za = bx + Wx[X].sum(1) + it
++                gm = ((sigmoid(zm) - y) / B).astype(np.float32)
++                ga = (alpha * (sigmoid(za) - p) / B).astype(np.float32)
++                gV = np.zeros_like(Va); gWm2 = np.zeros_like(Wm); gWx2 = np.zeros_like(Wx)
++                np.add.at(gWm2, X, gm[:, None])
++                np.add.at(gWx2, X, ga[:, None])
++                np.add.at(gV, X, (gm + ga)[:, None, None] * (S[:, None, :] - E))
++                gV += l22 * Va; gWm2 += l22 * Wm; gWx2 += l22 * Wx
++                tA += 1
++                for P, G, M, Vv in ((Va, gV, mVa, vVa), (Wm, gWm2, mWm, vWm), (Wx, gWx2, mWx, vWx)):
++                    M *= 0.9; M += 0.1 * G
++                    Vv *= 0.999; Vv += 0.001 * (G * G)
++                    P -= lr2 * (M / (1 - 0.9 ** tA)) / (np.sqrt(Vv / (1 - 0.999 ** tA)) + 1e-8)
++                bm -= np.float32(lr2 * gm.sum())
++                bx -= np.float32(lr2 * ga.sum())
++            primary = evaluate(uva, yva, pred_main(Xva))["primary"]
++            if primary > best + 1e-5:
++                best, bad = primary, 0
++                best_state = (Va.copy(), Wm.copy(), np.float32(bm))
++            else:
++                bad += 1
++                if bad >= 4:
++                    break
++        Va = best_state[0].copy(); Wm = best_state[1].copy(); bm = np.float32(best_state[2])
++        print(f"[blend] aux seed {seed}: champion {best:.6f}", flush=True)
++        return pred_main(Xva), pred_main(Xte), best
++
+@@ -260 +314 @@
+-    # component D: 3-seed dual-gate DIN
++    # component D: 5-seed dual-gate DIN
+@@ -262 +316 @@
+-    for seed in (0, 1, 2):
++    for seed in (0, 1, 2, 3, 4):
+@@ -268,2 +322,2 @@
+-    Dv /= 3.0; Dt /= 3.0
+-    # component F: 3-seed pointwise FM
++    Dv /= 5.0; Dt /= 5.0
++    # component F: 5-seed pointwise FM
+@@ -271 +325 @@
+-    for seed in (0, 1, 2):
++    for seed in (0, 1, 2, 3, 4):
+@@ -276,3 +330,3 @@
+-    Fv /= 3.0; Ft /= 3.0
+-    # component A: watch-ratio aux FM (seed 0)
+-    zv, zt, _ = fm_one(0, aux_alpha=0.3)
++    Fv /= 5.0; Ft /= 5.0
++    # component A: faithful it6 watch-ratio aux model (seed 0)
++    zv, zt, _ = aux_one(0)
+@@ -282,2 +335,0 @@
+-        "D": (1.0, 0.0, 0.0),
+-        "D+F": (1.0, 1.0, 0.0),
+@@ -285 +337,3 @@
+-        "D+F+A": (1.0, 1.0, 1.0),
++        "D": (1.0, 0.0, 0.0),
++        "3D+F": (3.0, 1.0, 0.0),
++        "2D+F+0.5A": (2.0, 1.0, 0.5),

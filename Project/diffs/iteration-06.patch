@@ -1,0 +1,226 @@
+--- Project/solutions/s004_fm_author_affinity.py
++++ Project/solutions/s005_fm_watchratio_aux.py
+@@ -1 +1 @@
+-"""Iteration: behavioral cross feature — user→author long_view affinity.
++"""Iteration: auxiliary soft watch-ratio head on shared FM embeddings.
+@@ -3,20 +3,20 @@
+-Why (research-grounded): counting/historical-engagement features between the
+-user and the candidate's side are a standard, repeatedly-validated gain path
+-in industrial CTR ranking (e.g. Google's counting features; arXiv:2012.15522),
+-and they are exactly the mechanism the organizers' own ablations bless: user
+-signals help only through CROSSES with item-side features (their static-field
+-and pure-user-side ablations were flat — LESSONS 1-2). The stock 5 fields
+-carry no engagement history at all; ranking-loss swaps on that representation
+-are proven dead (LESSONS 11-12). This adds ONE new FM field: the user's
+-train-window long_view rate on the candidate's AUTHOR, smoothed toward the
+-global rate (prior=20, mirroring the pop baseline), bucketized on train
+-quantiles, with a distinct no-history value.
+-
+-Leak safety: the affinity table is built from TRAIN-window rows only (dates
+-<= 20220421); valid/test rows only LOOK UP frozen counts. On train rows the
+-row's OWN label is subtracted first (leave-one-out) so no row can read its
+-target off its feature. No file access — everything comes from the splits
+-the harness hands in.
+-
+-Training: the proven pointwise recipe, unchanged (FM k=16, lr 1e-3, bs 8192,
+-early stop on valid primary, patience 4, seed 0), from scratch.
++Why (research-grounded): long_view binarizes away the continuous engagement
++evidence in play_time_ms/duration_ms. Multi-task ranking with watch-time
++auxiliaries is a validated gain path (MT-FwFM +0.74% AUC, arXiv:2008.09872;
++YouTube's watch-time-weighted LR; thresholded-watch auxiliaries in
++arXiv:2306.17426). A soft target (watch ratio in [0,1]) gives every train row
++a graded label — distillation-like extra bits per row — while the scored head
++stays the untouched long_view objective. This is LABEL-side new information,
++not a feature FM already embeds (LESSON 12a killed that path).
++
++Data path honesty: play_time_ms comes from the SANITIZED dataset copy
++(data_sanitized/ — the manifest's sanctioned file-level path; test-date rows
++have all feedback zeroed there). Only TRAIN-window rows (date <= 20220421)
++are read, aligned 1:1 against the harness-provided train split and asserted
++on user/video ids. Valid/test rows never contribute auxiliary targets.
++
++Model: one shared embedding table V (the interaction term is shared); each
++head owns its linear weights and bias. Loss = logloss(long_view) +
++ALPHA * logloss(sigmoid(z_aux), watch_ratio). Training recipe otherwise
++identical to the baseline (Adam lr 1e-3, bs 8192, early stop patience 4 on
++valid primary of the MAIN head, seed 0). Champion saved/restored by copy.
+@@ -24,0 +25 @@
++import csv
+@@ -31 +32 @@
+-HYPOTHESIS = "One behavioral cross field — LOO-smoothed user-to-author long_view rate from the train window — gives FM the engagement-history signal the stock 5 fields lack (counting features; organizers' own lesson that user signals must cross item-side); trained with the untouched pointwise recipe."
++HYPOTHESIS = "Auxiliary soft watch-ratio head (play_time_ms/duration_ms from the sanitized train-window log) on shared FM embeddings: graded engagement adds label-side bits the binary long_view lacks (multi-task watch-time literature); scored head and recipe stay the baseline's."
+@@ -33,2 +34,2 @@
+-PRIOR = 20.0
+-N_BUCKETS = 10
++ALPHA = 0.3
++TRAIN_LO, TRAIN_HI = 20220408, 20220421
+@@ -39 +40 @@
+-    from baseline import FM
++    from data import encode
+@@ -40,0 +42 @@
++    from baseline import sigmoid
+@@ -44,69 +46,22 @@
+-    # ---- affinity table from the train window only ----
+-    cnt = {}
+-    tot_pos = 0
+-    for x in train_rows:
+-        key = (x[1], x[3])  # (user_id, author_id)
+-        c = cnt.get(key)
+-        if c is None:
+-            cnt[key] = c = [0, 0]
+-        c[0] += x[6]
+-        c[1] += 1
+-        tot_pos += x[6]
+-    gmean = tot_pos / max(1, len(train_rows))
+-
+-    def affinity_rate(u, a, y_own=None):
+-        c = cnt.get((u, a))
+-        if c is None:
+-            return None
+-        pos, imp = c
+-        if y_own is not None:  # leave-one-out on train rows
+-            pos -= y_own
+-            imp -= 1
+-        if imp <= 0:
+-            return None
+-        return (pos + PRIOR * gmean) / (imp + PRIOR)
+-
+-    # Bucket edges from the train rows' own (LOO) rates — history rows only.
+-    rates = [r for r in (affinity_rate(x[1], x[3], x[6]) for x in train_rows)
+-             if r is not None]
+-    edges = np.quantile(np.asarray(rates),
+-                        np.linspace(0, 1, N_BUCKETS + 1)[1:-1])
+-
+-    def aff_bucket(x, in_train):
+-        r = affinity_rate(x[1], x[3], x[6] if in_train else None)
+-        if r is None:
+-            return "NOHIST"
+-        return str(int(np.searchsorted(edges, r)))
+-
+-    # ---- encoding: the organizers' 5 fields + the affinity field ----
+-    dur_edges = np.quantile(np.asarray([x[5] for x in train_rows]),
+-                            np.linspace(0, 1, 11)[1:-1])
+-
+-    def raw(x, in_train):
+-        return [x[1], x[2], x[3], x[4],
+-                str(int(np.searchsorted(dur_edges, x[5]))),
+-                aff_bucket(x, in_train)]
+-
+-    n_fields = 6
+-    vocabs = [dict() for _ in range(n_fields)]
+-    for x in train_rows:
+-        for i, v in enumerate(raw(x, True)):
+-            if v not in vocabs[i]:
+-                vocabs[i][v] = len(vocabs[i])
+-    unk = [len(v) for v in vocabs]
+-    field_dims = [len(v) + 1 for v in vocabs]
+-    offsets = np.cumsum([0] + field_dims[:-1]).astype(np.int32)
+-    dim = int(sum(field_dims))
+-
+-    enc = {}
+-    for name, rws in splits.items():
+-        in_train = name == "train"
+-        X = np.empty((len(rws), n_fields), dtype=np.int32)
+-        y = np.empty(len(rws), dtype=np.float32)
+-        users = []
+-        for n, x in enumerate(rws):
+-            for i, v in enumerate(raw(x, in_train)):
+-                X[n, i] = vocabs[i].get(v, unk[i]) + offsets[i]
+-            y[n] = x[6]
+-            users.append(x[1])
+-        enc[name] = (X, y, users)
++    # ---- auxiliary soft targets from the SANITIZED train-window log ----
++    san = KIT / "KuaiRand-Pure" / "data_sanitized" / "log_standard_4_08_to_4_21_pure.csv"
++    watch = []
++    meta = []
++    with open(san, newline="") as fh:
++        for r in csv.DictReader(fh):
++            d = int(r["date"])
++            if TRAIN_LO <= d <= TRAIN_HI:
++                dur = float(r["duration_ms"])
++                p = float(r["play_time_ms"]) / dur if dur > 0 else 0.0
++                watch.append(min(max(p, 0.0), 1.0))
++                meta.append((r["user_id"], r["video_id"]))
++    if len(watch) != len(train_rows):
++        raise SystemExit(f"aux alignment: {len(watch)} sanitized train rows vs "
++                         f"{len(train_rows)} split rows")
++    for probe in (0, 1, len(watch) // 2, len(watch) - 1, 200000, 400000, 800000):
++        if probe < len(watch):
++            x = train_rows[probe]
++            if meta[probe] != (x[1], x[2]):
++                raise SystemExit(f"aux alignment: row {probe} mismatch "
++                                 f"{meta[probe]} vs {(x[1], x[2])}")
++    p_watch = np.asarray(watch, dtype=np.float32)
+@@ -113,0 +69,2 @@
++    # ---- organizers' encoding, unchanged ----
++    enc, dim = encode(splits)
+@@ -118,2 +75,2 @@
+-    # ---- the untouched pointwise recipe ----
+-    model = FM(dim, k=16, lr=0.001, seed=0)
++    # ---- two-head FM with a shared embedding table ----
++    k, lr, l2 = 16, 0.001, 1e-6
+@@ -120,0 +78,44 @@
++    V = rng.normal(0, 0.01, (dim, k)).astype(np.float32)
++    Wm = np.zeros(dim, dtype=np.float32)
++    Wa = np.zeros(dim, dtype=np.float32)
++    bm = np.float32(0.0)
++    ba = np.float32(0.0)
++    mV = np.zeros_like(V); vV = np.zeros_like(V)
++    mWm = np.zeros_like(Wm); vWm = np.zeros_like(Wm)
++    mWa = np.zeros_like(Wa); vWa = np.zeros_like(Wa)
++    t = 0
++    b1, b2, eps = 0.9, 0.999, 1e-8
++
++    def interaction(X):
++        E = V[X]
++        S = E.sum(1)
++        return 0.5 * ((S ** 2).sum(1) - (E ** 2).sum((1, 2))), E, S
++
++    def step(X, y, p):
++        nonlocal t, bm, ba
++        B = len(y)
++        inter, E, S = interaction(X)
++        zm = bm + Wm[X].sum(1) + inter
++        za = ba + Wa[X].sum(1) + inter
++        gm = ((sigmoid(zm) - y) / B).astype(np.float32)
++        ga = (ALPHA * (sigmoid(za) - p) / B).astype(np.float32)
++        gV = np.zeros_like(V); gWm = np.zeros_like(Wm); gWa = np.zeros_like(Wa)
++        np.add.at(gWm, X, gm[:, None])
++        np.add.at(gWa, X, ga[:, None])
++        np.add.at(gV, X, (gm + ga)[:, None, None] * (S[:, None, :] - E))
++        gV += l2 * V; gWm += l2 * Wm; gWa += l2 * Wa
++        t += 1
++        for P, G, M, Vv in ((V, gV, mV, vV), (Wm, gWm, mWm, vWm), (Wa, gWa, mWa, vWa)):
++            M *= b1; M += (1 - b1) * G
++            Vv *= b2; Vv += (1 - b2) * (G * G)
++            P -= lr * (M / (1 - b1 ** t)) / (np.sqrt(Vv / (1 - b2 ** t)) + eps)
++        bm -= np.float32(lr * gm.sum())
++        ba -= np.float32(lr * ga.sum())
++
++    def predict_main(X, bs=200_000):
++        out = []
++        for i in range(0, len(X), bs):
++            inter, _, _ = interaction(X[i:i + bs])
++            out.append(bm + Wm[X[i:i + bs]].sum(1) + inter)
++        return np.concatenate(out)
++
+@@ -125,3 +126,4 @@
+-            model.step(Xtr[idx[i:i + 8192]], ytr[idx[i:i + 8192]])
+-        primary = evaluate(uva, yva, model.predict(Xva))["primary"]
+-        print(f"[affinity] epoch {ep:2d} valid primary {primary:.6f} "
++            b = idx[i:i + 8192]
++            step(Xtr[b], ytr[b], p_watch[b])
++        primary = evaluate(uva, yva, predict_main(Xva))["primary"]
++        print(f"[aux] epoch {ep:2d} valid primary {primary:.6f} "
+@@ -131 +133 @@
+-            best_state = (model.V.copy(), model.W.copy(), model.b)
++            best_state = (V.copy(), Wm.copy(), np.float32(bm))
+@@ -137,4 +139,4 @@
+-    model.V = best_state[0].copy()
+-    model.W = best_state[1].copy()
+-    model.b = best_state[2]
+-    return {"valid": model.predict(Xva), "test": model.predict(Xte)}
++    V = best_state[0].copy()
++    Wm = best_state[1].copy()
++    bm = np.float32(best_state[2])
++    return {"valid": predict_main(Xva), "test": predict_main(Xte)}

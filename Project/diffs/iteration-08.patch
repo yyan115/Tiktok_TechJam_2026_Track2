@@ -1,0 +1,59 @@
+--- Project/solutions/s006_fm_watchratio_aux_a10.py
++++ Project/solutions/s007_fm_watchratio_heads.py
+@@ -32 +32 @@
+-HYPOTHESIS = "Dose-response on it6: same watch-ratio auxiliary, ALPHA 0.3 -> 1.0. it6 was the run's first positive move (+0.0003); if the soft label is the driver, a stronger dose should move further (the aux target is nearly on-task: long_view IS a thresholded play/duration)."
++HYPOTHESIS = "Head-space selection on it6's two-head FM (alpha=0.3, the known-good dose): each epoch scores main, aux, and three blends (m+0.5a, m+a, m+2a) on validation and the champion is the best (combo, epoch) pair — measures the aux head's own ranking power (never observed in it6/it7) and harvests any blend gain in one run."
+@@ -34 +34 @@
+-ALPHA = 1.0
++ALPHA = 0.3
+@@ -115,2 +115,2 @@
+-    def predict_main(X, bs=200_000):
+-        out = []
++    def predict_heads(X, bs=200_000):
++        zm_out, za_out = [], []
+@@ -118,3 +118,9 @@
+-            inter, _, _ = interaction(X[i:i + bs])
+-            out.append(bm + Wm[X[i:i + bs]].sum(1) + inter)
+-        return np.concatenate(out)
++            Xb = X[i:i + bs]
++            inter, _, _ = interaction(Xb)
++            zm_out.append(bm + Wm[Xb].sum(1) + inter)
++            za_out.append(ba + Wa[Xb].sum(1) + inter)
++        return np.concatenate(zm_out), np.concatenate(za_out)
++
++    # Candidate score combos over the two heads; weights (wm, wa).
++    COMBOS = [("main", 1.0, 0.0), ("aux", 0.0, 1.0),
++              ("m+0.5a", 1.0, 0.5), ("m+a", 1.0, 1.0), ("m+2a", 1.0, 2.0)]
+@@ -122 +128 @@
+-    best, best_state, bad = -1.0, None, 0
++    best, best_state, best_combo, bad = -1.0, None, None, 0
+@@ -128,6 +134,13 @@
+-        primary = evaluate(uva, yva, predict_main(Xva))["primary"]
+-        print(f"[aux] epoch {ep:2d} valid primary {primary:.6f} "
+-              f"(best {best:.6f})", flush=True)
+-        if primary > best + 1e-5:
+-            best, bad = primary, 0
+-            best_state = (V.copy(), Wm.copy(), np.float32(bm))
++        zm, za = predict_heads(Xva)
++        ep_best, ep_combo = -1.0, None
++        for name, wm_, wa_ in COMBOS:
++            primary = evaluate(uva, yva, wm_ * zm + wa_ * za)["primary"]
++            if primary > ep_best:
++                ep_best, ep_combo = primary, (name, wm_, wa_)
++        print(f"[heads] epoch {ep:2d} best {ep_best:.6f} via {ep_combo[0]} "
++              f"(global {best:.6f})", flush=True)
++        if ep_best > best + 1e-5:
++            best, bad = ep_best, 0
++            best_combo = ep_combo
++            best_state = (V.copy(), Wm.copy(), np.float32(bm),
++                          Wa.copy(), np.float32(ba))
+@@ -142 +155,8 @@
+-    return {"valid": predict_main(Xva), "test": predict_main(Xte)}
++    Wa = best_state[3].copy()
++    ba = np.float32(best_state[4])
++    name, wm_, wa_ = best_combo
++    print(f"[heads] champion combo: {name} at valid {best:.6f}", flush=True)
++    zm_va, za_va = predict_heads(Xva)
++    zm_te, za_te = predict_heads(Xte)
++    return {"valid": wm_ * zm_va + wa_ * za_va,
++            "test": wm_ * zm_te + wa_ * za_te}

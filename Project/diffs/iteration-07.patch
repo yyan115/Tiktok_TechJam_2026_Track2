@@ -1,0 +1,8 @@
+--- Project/solutions/s005_fm_watchratio_aux.py
++++ Project/solutions/s006_fm_watchratio_aux_a10.py
+@@ -32 +32 @@
+-HYPOTHESIS = "Auxiliary soft watch-ratio head (play_time_ms/duration_ms from the sanitized train-window log) on shared FM embeddings: graded engagement adds label-side bits the binary long_view lacks (multi-task watch-time literature); scored head and recipe stay the baseline's."
++HYPOTHESIS = "Dose-response on it6: same watch-ratio auxiliary, ALPHA 0.3 -> 1.0. it6 was the run's first positive move (+0.0003); if the soft label is the driver, a stronger dose should move further (the aux target is nearly on-task: long_view IS a thresholded play/duration)."
+@@ -34 +34 @@
+-ALPHA = 0.3
++ALPHA = 1.0

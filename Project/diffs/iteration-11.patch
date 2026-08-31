@@ -1,0 +1,188 @@
+--- Project/solutions/s009_fm_din_scaled.py
++++ Project/solutions/s010_fm_din_author.py
+@@ -1 +1 @@
+-"""Iteration: DIN-lite — target-aware attention over the user's engaged history.
++"""Iteration: dual-granularity DIN-lite — video AND author attention gates.
+@@ -3,24 +3,12 @@
+-Why (research-grounded): DIN (Zhou et al., KDD'18) showed that activating the
+-user's PAST BEHAVIOR by its similarity to the CANDIDATE item lifts ranking
+-AUC; the mechanism needs sequence data that our stock FM completely ignores.
+-This is capacity + information outside the (static fields x label) span —
+-the only open front after LESSONS 11-12a killed loss swaps and static
+-count-crosses. History order comes from time_ms in the SANITIZED train log
+-(the manifest's sanctioned file path).
+-
+-Mechanism: z = FM(x) + w * sum_j softmax_j(e_cand . e_hist_j / sqrt(k)) *
+-(e_cand . e_hist_j), where hist = the last HIST_LEN train-window videos the
+-user engaged (long_view=1) STRICTLY BEFORE the row being scored (causal
+-within train, per-row); valid/test rows use the user's full train-window
+-history (their dates all lie after it). Video embeddings are shared with the
+-FM's video field — no new tables.
+-
+-Risk control: the gate w starts at 0.0, so training starts from EXACTLY the
+-baseline model; the attention term only enters if the optimizer opens the
+-gate. Champion state saved/restored by deep copy (LESSON 10). Leak safety:
+-history events are train-window rows only; a row's own event never enters
+-its own history; only long_view (already the training label) is read from
+-the sanitized file — no test-date feedback exists there by construction.
+-
+-Training recipe otherwise identical to the baseline (Adam lr 1e-3, bs 8192,
+-early stop patience 4 on valid primary, seed 0).
++Why: it9 proved target-aware attention over engaged history is live (+0.0007,
++gate self-opened); it10 showed longer video history does NOT compound. The
++untried axis is entity GRANULARITY: authors recur across a user's history far
++more than individual videos (a user rarely re-sees a video, but follows
++creators), so candidate-author vs history-author matching should carry the
++loyalty signal video-level matching dilutes. DIN's activation idea, applied
++at two granularities with separate zero-initialized gates.
++
++Everything else is the it9 configuration untouched (HIST_LEN 10, engaged-only
++causal history from the sanitized train log's time_ms, shared embeddings,
++baseline recipe, champion by deep copy). Either gate can stay closed; the
++model starts exactly at the baseline.
+@@ -37 +25 @@
+-HYPOTHESIS = "Scale it9's working mechanism: HIST_LEN 10 to 30 (longer engaged history per user) plus a zero-initialized learned positional bias on attention slots (recency prior the data can shape). Same gate-from-zero safety; it9's +0.0007 says the sequence term is live, so give it more evidence to attend over."
++HYPOTHESIS = "Dual-granularity DIN-lite: add an author-level attention gate beside it9's video-level one (both zero-init). Authors recur in history where videos don't — candidate-author vs engaged-history-author matching should carry creator-loyalty signal that video-granularity dilutes; it10 showed longer history is not the axis, granularity is the untried one."
+@@ -39 +27 @@
+-HIST_LEN = 30
++HIST_LEN = 10
+@@ -77 +65 @@
+-    # ---- causal per-row history (encoded video slot ids; -1 pad) ----
++    # ---- causal per-row history: engaged (video_id, author_id) slot pairs ----
+@@ -81 +69,2 @@
+-    Htr = np.full((len(train_rows), HIST_LEN), -1, dtype=np.int64)
++    Hv_tr = np.full((len(train_rows), HIST_LEN), -1, dtype=np.int64)
++    Ha_tr = np.full((len(train_rows), HIST_LEN), -1, dtype=np.int64)
+@@ -87,2 +76,3 @@
+-            for j, hv in enumerate(hist):
+-                Htr[p, j] = hv
++            for j, (hv, ha) in enumerate(hist):
++                Hv_tr[p, j] = hv
++                Ha_tr[p, j] = ha
+@@ -90 +80 @@
+-                hist.append(int(Xtr[p, 1]))
++                hist.append((int(Xtr[p, 1]), int(Xtr[p, 2])))
+@@ -94 +84,2 @@
+-        H = np.full((len(users), HIST_LEN), -1, dtype=np.int64)
++        Hv = np.full((len(users), HIST_LEN), -1, dtype=np.int64)
++        Ha = np.full((len(users), HIST_LEN), -1, dtype=np.int64)
+@@ -98,2 +89,4 @@
+-                H[n, : len(h)] = h
+-        return H
++                for j, (hv, ha) in enumerate(h):
++                    Hv[n, j] = hv
++                    Ha[n, j] = ha
++        return Hv, Ha
+@@ -101,2 +94,2 @@
+-    Hva = split_hist(uva)
+-    Hte = split_hist(ute)
++    Hv_va, Ha_va = split_hist(uva)
++    Hv_te, Ha_te = split_hist(ute)
+@@ -104 +97 @@
+-    # ---- FM + gated target-aware attention ----
++    # ---- FM + two gated attention terms (video- and author-granularity) ----
+@@ -111,2 +104,2 @@
+-    w_gate = 0.0
+-    pb = np.zeros(HIST_LEN, dtype=np.float32)   # learned positional bias
++    w1 = 0.0  # video-attention gate
++    w2 = 0.0  # author-attention gate
+@@ -115,2 +108 @@
+-    mpb = np.zeros_like(pb); vpb = np.zeros_like(pb)
+-    mw = 0.0; vw = 0.0
++    mw1 = vw1 = mw2 = vw2 = 0.0
+@@ -120,5 +112,2 @@
+-    def attn_forward(X, H):
+-        E = V[X]                                    # (B,F,k)
+-        S = E.sum(1)
+-        inter = 0.5 * ((S ** 2).sum(1) - (E ** 2).sum((1, 2)))
+-        zfm = b + W[X].sum(1) + inter
++    def attn_block(Ecand, H):
++        """Target-aware softmax attention; returns (out, aux) for backprop."""
+@@ -128,2 +117 @@
+-        ev = E[:, 1, :]                             # candidate video embedding
+-        s = np.einsum("blk,bk->bl", Eh, ev) / tau + pb[None, :]
++        s = np.einsum("blk,bk->bl", Eh, Ecand) / tau
+@@ -138,2 +126,20 @@
+-        out = tau * f                               # sum_j a_j (ev.eh_j)
+-        return zfm + w_gate * out, E, S, Eh, ev, a, s_use, f, out, valid, Hs
++        out = tau * f
++        return out, (Eh, Hs, a, s_use, f)
++
++    def forward(X, Hv, Ha):
++        E = V[X]
++        S = E.sum(1)
++        inter = 0.5 * ((S ** 2).sum(1) - (E ** 2).sum((1, 2)))
++        zfm = b + W[X].sum(1) + inter
++        out1, aux1 = attn_block(E[:, 1, :], Hv)
++        out2, aux2 = attn_block(E[:, 2, :], Ha)
++        return zfm + w1 * out1 + w2 * out2, E, S, out1, aux1, out2, aux2
++
++    def attn_backprop(gV, X, field, gate, g, Ecand, aux):
++        Eh, Hs, a, s_use, f = aux
++        c = a * (1.0 + s_use - f[:, None])
++        coef = (g * gate).astype(np.float32)
++        gv_cand = coef[:, None] * (c[:, :, None] * Eh).sum(1)
++        np.add.at(gV, X[:, field], gv_cand.astype(np.float32))
++        gh = coef[:, None, None] * c[:, :, None] * Ecand[:, None, :]
++        np.add.at(gV, Hs, gh.astype(np.float32))
+@@ -141,2 +147,2 @@
+-    def step(X, H, y):
+-        nonlocal t, b, w_gate, mw, vw
++    def step(X, Hv, Ha, y):
++        nonlocal t, b, w1, w2, mw1, vw1, mw2, vw2
+@@ -144 +150 @@
+-        z, E, S, Eh, ev, a, s_use, f, out, valid, Hs = attn_forward(X, H)
++        z, E, S, out1, aux1, out2, aux2 = forward(X, Hv, Ha)
+@@ -149,9 +155,4 @@
+-        # attention path
+-        c = a * (1.0 + s_use - f[:, None])          # (B,L); 0 at pads
+-        gw_coef = (g * w_gate).astype(np.float32)
+-        gv_cand = gw_coef[:, None] * (c[:, :, None] * Eh).sum(1)      # (B,k)
+-        np.add.at(gV, X[:, 1], gv_cand.astype(np.float32))
+-        gh = (gw_coef[:, None, None] * c[:, :, None] * ev[:, None, :])
+-        np.add.at(gV, Hs, gh.astype(np.float32))
+-        g_w = float((g * out).sum())
+-        g_pb = (tau * (gw_coef[:, None] * c).sum(0)).astype(np.float32)
++        attn_backprop(gV, X, 1, w1, g, E[:, 1, :], aux1)
++        attn_backprop(gV, X, 2, w2, g, E[:, 2, :], aux2)
++        g_w1 = float((g * out1).sum())
++        g_w2 = float((g * out2).sum())
+@@ -160 +161 @@
+-        for P, G, M, Vv in ((V, gV, mV, vV), (W, gW, mW, vW), (pb, g_pb, mpb, vpb)):
++        for P, G, M, Vv in ((V, gV, mV, vV), (W, gW, mW, vW)):
+@@ -164,3 +165,6 @@
+-        mw = b1 * mw + (1 - b1) * g_w
+-        vw = b2 * vw + (1 - b2) * g_w * g_w
+-        w_gate -= lr * (mw / (1 - b1 ** t)) / (np.sqrt(vw / (1 - b2 ** t)) + eps)
++        mw1 = b1 * mw1 + (1 - b1) * g_w1
++        vw1 = b2 * vw1 + (1 - b2) * g_w1 * g_w1
++        w1 -= lr * (mw1 / (1 - b1 ** t)) / (np.sqrt(vw1 / (1 - b2 ** t)) + eps)
++        mw2 = b1 * mw2 + (1 - b1) * g_w2
++        vw2 = b2 * vw2 + (1 - b2) * g_w2 * g_w2
++        w2 -= lr * (mw2 / (1 - b1 ** t)) / (np.sqrt(vw2 / (1 - b2 ** t)) + eps)
+@@ -169 +173 @@
+-    def predict(X, H, bs=100_000):
++    def predict(X, Hv, Ha, bs=100_000):
+@@ -172,2 +176 @@
+-            z = attn_forward(X[i:i + bs], H[i:i + bs])[0]
+-            outs.append(z)
++            outs.append(forward(X[i:i + bs], Hv[i:i + bs], Ha[i:i + bs])[0])
+@@ -181,4 +184,4 @@
+-            step(Xtr[bt], Htr[bt], ytr[bt])
+-        primary = evaluate(uva, yva, predict(Xva, Hva))["primary"]
+-        print(f"[din] epoch {ep:2d} valid primary {primary:.6f} "
+-              f"(best {best:.6f}, gate {w_gate:+.4f})", flush=True)
++            step(Xtr[bt], Hv_tr[bt], Ha_tr[bt], ytr[bt])
++        primary = evaluate(uva, yva, predict(Xva, Hv_va, Ha_va))["primary"]
++        print(f"[din2] epoch {ep:2d} valid primary {primary:.6f} "
++              f"(best {best:.6f}, gates v{w1:+.3f} a{w2:+.3f})", flush=True)
+@@ -187 +190 @@
+-            best_state = (V.copy(), W.copy(), np.float32(b), float(w_gate), pb.copy())
++            best_state = (V.copy(), W.copy(), np.float32(b), float(w1), float(w2))
+@@ -196,3 +199,3 @@
+-    w_gate = float(best_state[3])
+-    pb = best_state[4].copy()
+-    return {"valid": predict(Xva, Hva), "test": predict(Xte, Hte)}
++    w1 = float(best_state[3])
++    w2 = float(best_state[4])
++    return {"valid": predict(Xva, Hv_va, Ha_va), "test": predict(Xte, Hv_te, Ha_te)}

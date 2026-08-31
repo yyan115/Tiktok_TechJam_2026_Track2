@@ -1,0 +1,25 @@
+--- Project/solutions/s008_fm_din_lite.py
++++ Project/solutions/s009_fm_din_scaled.py
+@@ -37 +37 @@
+-HYPOTHESIS = "DIN-lite: a zero-initialized gated attention term over the user's causally-ordered engaged train-window history (time_ms from the sanitized log), sharing the FM's video embeddings — sequence information the stock representation ignores (DIN, KDD'18); starts exactly at the baseline and can only open the gate if it helps."
++HYPOTHESIS = "Scale it9's working mechanism: HIST_LEN 10 to 30 (longer engaged history per user) plus a zero-initialized learned positional bias on attention slots (recency prior the data can shape). Same gate-from-zero safety; it9's +0.0007 says the sequence term is live, so give it more evidence to attend over."
+@@ -39 +39 @@
+-HIST_LEN = 10
++HIST_LEN = 30
+@@ -111,0 +112 @@
++    pb = np.zeros(HIST_LEN, dtype=np.float32)   # learned positional bias
+@@ -113,0 +115 @@
++    mpb = np.zeros_like(pb); vpb = np.zeros_like(pb)
+@@ -127 +129 @@
+-        s = np.einsum("blk,bk->bl", Eh, ev) / tau
++        s = np.einsum("blk,bk->bl", Eh, ev) / tau + pb[None, :]
+@@ -154,0 +157 @@
++        g_pb = (tau * (gw_coef[:, None] * c).sum(0)).astype(np.float32)
+@@ -157 +160 @@
+-        for P, G, M, Vv in ((V, gV, mV, vV), (W, gW, mW, vW)):
++        for P, G, M, Vv in ((V, gV, mV, vV), (W, gW, mW, vW), (pb, g_pb, mpb, vpb)):
+@@ -184 +187 @@
+-            best_state = (V.copy(), W.copy(), np.float32(b), float(w_gate))
++            best_state = (V.copy(), W.copy(), np.float32(b), float(w_gate), pb.copy())
+@@ -193,0 +197 @@
++    pb = best_state[4].copy()

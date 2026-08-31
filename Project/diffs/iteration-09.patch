@@ -1,0 +1,264 @@
+--- Project/solutions/s007_fm_watchratio_heads.py
++++ Project/solutions/s008_fm_din_lite.py
+@@ -1 +1 @@
+-"""Iteration: auxiliary soft watch-ratio head on shared FM embeddings.
++"""Iteration: DIN-lite — target-aware attention over the user's engaged history.
+@@ -3,20 +3,24 @@
+-Why (research-grounded): long_view binarizes away the continuous engagement
+-evidence in play_time_ms/duration_ms. Multi-task ranking with watch-time
+-auxiliaries is a validated gain path (MT-FwFM +0.74% AUC, arXiv:2008.09872;
+-YouTube's watch-time-weighted LR; thresholded-watch auxiliaries in
+-arXiv:2306.17426). A soft target (watch ratio in [0,1]) gives every train row
+-a graded label — distillation-like extra bits per row — while the scored head
+-stays the untouched long_view objective. This is LABEL-side new information,
+-not a feature FM already embeds (LESSON 12a killed that path).
+-
+-Data path honesty: play_time_ms comes from the SANITIZED dataset copy
+-(data_sanitized/ — the manifest's sanctioned file-level path; test-date rows
+-have all feedback zeroed there). Only TRAIN-window rows (date <= 20220421)
+-are read, aligned 1:1 against the harness-provided train split and asserted
+-on user/video ids. Valid/test rows never contribute auxiliary targets.
+-
+-Model: one shared embedding table V (the interaction term is shared); each
+-head owns its linear weights and bias. Loss = logloss(long_view) +
+-ALPHA * logloss(sigmoid(z_aux), watch_ratio). Training recipe otherwise
+-identical to the baseline (Adam lr 1e-3, bs 8192, early stop patience 4 on
+-valid primary of the MAIN head, seed 0). Champion saved/restored by copy.
++Why (research-grounded): DIN (Zhou et al., KDD'18) showed that activating the
++user's PAST BEHAVIOR by its similarity to the CANDIDATE item lifts ranking
++AUC; the mechanism needs sequence data that our stock FM completely ignores.
++This is capacity + information outside the (static fields x label) span —
++the only open front after LESSONS 11-12a killed loss swaps and static
++count-crosses. History order comes from time_ms in the SANITIZED train log
++(the manifest's sanctioned file path).
++
++Mechanism: z = FM(x) + w * sum_j softmax_j(e_cand . e_hist_j / sqrt(k)) *
++(e_cand . e_hist_j), where hist = the last HIST_LEN train-window videos the
++user engaged (long_view=1) STRICTLY BEFORE the row being scored (causal
++within train, per-row); valid/test rows use the user's full train-window
++history (their dates all lie after it). Video embeddings are shared with the
++FM's video field — no new tables.
++
++Risk control: the gate w starts at 0.0, so training starts from EXACTLY the
++baseline model; the attention term only enters if the optimizer opens the
++gate. Champion state saved/restored by deep copy (LESSON 10). Leak safety:
++history events are train-window rows only; a row's own event never enters
++its own history; only long_view (already the training label) is read from
++the sanitized file — no test-date feedback exists there by construction.
++
++Training recipe otherwise identical to the baseline (Adam lr 1e-3, bs 8192,
++early stop patience 4 on valid primary, seed 0).
+@@ -26,0 +31 @@
++from collections import deque
+@@ -32 +37 @@
+-HYPOTHESIS = "Head-space selection on it6's two-head FM (alpha=0.3, the known-good dose): each epoch scores main, aux, and three blends (m+0.5a, m+a, m+2a) on validation and the champion is the best (combo, epoch) pair — measures the aux head's own ranking power (never observed in it6/it7) and harvests any blend gain in one run."
++HYPOTHESIS = "DIN-lite: a zero-initialized gated attention term over the user's causally-ordered engaged train-window history (time_ms from the sanitized log), sharing the FM's video embeddings — sequence information the stock representation ignores (DIN, KDD'18); starts exactly at the baseline and can only open the gate if it helps."
+@@ -34 +39 @@
+-ALPHA = 0.3
++HIST_LEN = 10
+@@ -46 +51,7 @@
+-    # ---- auxiliary soft targets from the SANITIZED train-window log ----
++    # ---- organizers' encoding, unchanged ----
++    enc, dim = encode(splits)
++    Xtr, ytr, _ = enc["train"]
++    Xva, yva, uva = enc["valid"]
++    Xte, _, ute = enc["test"]  # labels stripped by the harness; unused
++
++    # ---- event times from the sanitized train-window log, aligned 1:1 ----
+@@ -48 +59 @@
+-    watch = []
++    times = []
+@@ -54,3 +65 @@
+-                dur = float(r["duration_ms"])
+-                p = float(r["play_time_ms"]) / dur if dur > 0 else 0.0
+-                watch.append(min(max(p, 0.0), 1.0))
++                times.append(int(r["time_ms"]))
+@@ -58,2 +67,2 @@
+-    if len(watch) != len(train_rows):
+-        raise SystemExit(f"aux alignment: {len(watch)} sanitized train rows vs "
++    if len(times) != len(train_rows):
++        raise SystemExit(f"seq alignment: {len(times)} sanitized train rows vs "
+@@ -61,2 +70,2 @@
+-    for probe in (0, 1, len(watch) // 2, len(watch) - 1, 200000, 400000, 800000):
+-        if probe < len(watch):
++    for probe in (0, 1, len(times) // 2, len(times) - 1, 250000, 700000):
++        if probe < len(times):
+@@ -65 +74 @@
+-                raise SystemExit(f"aux alignment: row {probe} mismatch "
++                raise SystemExit(f"seq alignment: row {probe} mismatch "
+@@ -67 +75,0 @@
+-    p_watch = np.asarray(watch, dtype=np.float32)
+@@ -69,5 +77,26 @@
+-    # ---- organizers' encoding, unchanged ----
+-    enc, dim = encode(splits)
+-    Xtr, ytr, _ = enc["train"]
+-    Xva, yva, uva = enc["valid"]
+-    Xte, _, _ = enc["test"]  # labels stripped by the harness; unused
++    # ---- causal per-row history (encoded video slot ids; -1 pad) ----
++    by_user = {}
++    for pos, x in enumerate(train_rows):
++        by_user.setdefault(x[1], []).append(pos)
++    Htr = np.full((len(train_rows), HIST_LEN), -1, dtype=np.int64)
++    user_final = {}
++    for u, poss in by_user.items():
++        poss.sort(key=lambda p: (times[p], p))
++        hist = deque(maxlen=HIST_LEN)
++        for p in poss:
++            for j, hv in enumerate(hist):
++                Htr[p, j] = hv
++            if ytr[p] > 0.5:
++                hist.append(int(Xtr[p, 1]))
++        user_final[u] = list(hist)
++
++    def split_hist(users):
++        H = np.full((len(users), HIST_LEN), -1, dtype=np.int64)
++        for n, u in enumerate(users):
++            h = user_final.get(u)
++            if h:
++                H[n, : len(h)] = h
++        return H
++
++    Hva = split_hist(uva)
++    Hte = split_hist(ute)
+@@ -75 +104 @@
+-    # ---- two-head FM with a shared embedding table ----
++    # ---- FM + gated target-aware attention ----
+@@ -76,0 +106 @@
++    tau = float(np.sqrt(k))
+@@ -79,4 +109,3 @@
+-    Wm = np.zeros(dim, dtype=np.float32)
+-    Wa = np.zeros(dim, dtype=np.float32)
+-    bm = np.float32(0.0)
+-    ba = np.float32(0.0)
++    W = np.zeros(dim, dtype=np.float32)
++    b = np.float32(0.0)
++    w_gate = 0.0
+@@ -84,2 +113,2 @@
+-    mWm = np.zeros_like(Wm); vWm = np.zeros_like(Wm)
+-    mWa = np.zeros_like(Wa); vWa = np.zeros_like(Wa)
++    mW = np.zeros_like(W); vW = np.zeros_like(W)
++    mw = 0.0; vw = 0.0
+@@ -89,2 +118,2 @@
+-    def interaction(X):
+-        E = V[X]
++    def attn_forward(X, H):
++        E = V[X]                                    # (B,F,k)
+@@ -92 +121,17 @@
+-        return 0.5 * ((S ** 2).sum(1) - (E ** 2).sum((1, 2))), E, S
++        inter = 0.5 * ((S ** 2).sum(1) - (E ** 2).sum((1, 2)))
++        zfm = b + W[X].sum(1) + inter
++        valid = H >= 0
++        Hs = np.where(valid, H, 0)
++        Eh = V[Hs]                                  # (B,L,k)
++        ev = E[:, 1, :]                             # candidate video embedding
++        s = np.einsum("blk,bk->bl", Eh, ev) / tau
++        s_use = np.where(valid, s, 0.0)
++        s_m = np.where(valid, s, -np.inf)
++        m = s_m.max(1)
++        m = np.where(np.isfinite(m), m, 0.0)
++        e = np.exp(np.where(valid, s - m[:, None], -np.inf))
++        asum = e.sum(1)
++        a = e / np.maximum(asum, 1e-12)[:, None]
++        f = (a * s_use).sum(1)
++        out = tau * f                               # sum_j a_j (ev.eh_j)
++        return zfm + w_gate * out, E, S, Eh, ev, a, s_use, f, out, valid, Hs
+@@ -94,2 +139,2 @@
+-    def step(X, y, p):
+-        nonlocal t, bm, ba
++    def step(X, H, y):
++        nonlocal t, b, w_gate, mw, vw
+@@ -97,10 +142,14 @@
+-        inter, E, S = interaction(X)
+-        zm = bm + Wm[X].sum(1) + inter
+-        za = ba + Wa[X].sum(1) + inter
+-        gm = ((sigmoid(zm) - y) / B).astype(np.float32)
+-        ga = (ALPHA * (sigmoid(za) - p) / B).astype(np.float32)
+-        gV = np.zeros_like(V); gWm = np.zeros_like(Wm); gWa = np.zeros_like(Wa)
+-        np.add.at(gWm, X, gm[:, None])
+-        np.add.at(gWa, X, ga[:, None])
+-        np.add.at(gV, X, (gm + ga)[:, None, None] * (S[:, None, :] - E))
+-        gV += l2 * V; gWm += l2 * Wm; gWa += l2 * Wa
++        z, E, S, Eh, ev, a, s_use, f, out, valid, Hs = attn_forward(X, H)
++        g = ((sigmoid(z) - y) / B).astype(np.float32)
++        gV = np.zeros_like(V); gW = np.zeros_like(W)
++        np.add.at(gW, X, g[:, None])
++        np.add.at(gV, X, g[:, None, None] * (S[:, None, :] - E))
++        # attention path
++        c = a * (1.0 + s_use - f[:, None])          # (B,L); 0 at pads
++        gw_coef = (g * w_gate).astype(np.float32)
++        gv_cand = gw_coef[:, None] * (c[:, :, None] * Eh).sum(1)      # (B,k)
++        np.add.at(gV, X[:, 1], gv_cand.astype(np.float32))
++        gh = (gw_coef[:, None, None] * c[:, :, None] * ev[:, None, :])
++        np.add.at(gV, Hs, gh.astype(np.float32))
++        g_w = float((g * out).sum())
++        gV += l2 * V; gW += l2 * W
+@@ -108 +157 @@
+-        for P, G, M, Vv in ((V, gV, mV, vV), (Wm, gWm, mWm, vWm), (Wa, gWa, mWa, vWa)):
++        for P, G, M, Vv in ((V, gV, mV, vV), (W, gW, mW, vW)):
+@@ -112,2 +161,4 @@
+-        bm -= np.float32(lr * gm.sum())
+-        ba -= np.float32(lr * ga.sum())
++        mw = b1 * mw + (1 - b1) * g_w
++        vw = b2 * vw + (1 - b2) * g_w * g_w
++        w_gate -= lr * (mw / (1 - b1 ** t)) / (np.sqrt(vw / (1 - b2 ** t)) + eps)
++        b -= np.float32(lr * g.sum())
+@@ -115,2 +166,2 @@
+-    def predict_heads(X, bs=200_000):
+-        zm_out, za_out = [], []
++    def predict(X, H, bs=100_000):
++        outs = []
+@@ -118,9 +169,3 @@
+-            Xb = X[i:i + bs]
+-            inter, _, _ = interaction(Xb)
+-            zm_out.append(bm + Wm[Xb].sum(1) + inter)
+-            za_out.append(ba + Wa[Xb].sum(1) + inter)
+-        return np.concatenate(zm_out), np.concatenate(za_out)
+-
+-    # Candidate score combos over the two heads; weights (wm, wa).
+-    COMBOS = [("main", 1.0, 0.0), ("aux", 0.0, 1.0),
+-              ("m+0.5a", 1.0, 0.5), ("m+a", 1.0, 1.0), ("m+2a", 1.0, 2.0)]
++            z = attn_forward(X[i:i + bs], H[i:i + bs])[0]
++            outs.append(z)
++        return np.concatenate(outs)
+@@ -128 +173 @@
+-    best, best_state, best_combo, bad = -1.0, None, None, 0
++    best, best_state, bad = -1.0, None, 0
+@@ -132,15 +177,8 @@
+-            b = idx[i:i + 8192]
+-            step(Xtr[b], ytr[b], p_watch[b])
+-        zm, za = predict_heads(Xva)
+-        ep_best, ep_combo = -1.0, None
+-        for name, wm_, wa_ in COMBOS:
+-            primary = evaluate(uva, yva, wm_ * zm + wa_ * za)["primary"]
+-            if primary > ep_best:
+-                ep_best, ep_combo = primary, (name, wm_, wa_)
+-        print(f"[heads] epoch {ep:2d} best {ep_best:.6f} via {ep_combo[0]} "
+-              f"(global {best:.6f})", flush=True)
+-        if ep_best > best + 1e-5:
+-            best, bad = ep_best, 0
+-            best_combo = ep_combo
+-            best_state = (V.copy(), Wm.copy(), np.float32(bm),
+-                          Wa.copy(), np.float32(ba))
++            bt = idx[i:i + 8192]
++            step(Xtr[bt], Htr[bt], ytr[bt])
++        primary = evaluate(uva, yva, predict(Xva, Hva))["primary"]
++        print(f"[din] epoch {ep:2d} valid primary {primary:.6f} "
++              f"(best {best:.6f}, gate {w_gate:+.4f})", flush=True)
++        if primary > best + 1e-5:
++            best, bad = primary, 0
++            best_state = (V.copy(), W.copy(), np.float32(b), float(w_gate))
+@@ -153,10 +191,4 @@
+-    Wm = best_state[1].copy()
+-    bm = np.float32(best_state[2])
+-    Wa = best_state[3].copy()
+-    ba = np.float32(best_state[4])
+-    name, wm_, wa_ = best_combo
+-    print(f"[heads] champion combo: {name} at valid {best:.6f}", flush=True)
+-    zm_va, za_va = predict_heads(Xva)
+-    zm_te, za_te = predict_heads(Xte)
+-    return {"valid": wm_ * zm_va + wa_ * za_va,
+-            "test": wm_ * zm_te + wa_ * za_te}
++    W = best_state[1].copy()
++    b = np.float32(best_state[2])
++    w_gate = float(best_state[3])
++    return {"valid": predict(Xva, Hva), "test": predict(Xte, Hte)}
