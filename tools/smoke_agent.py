@@ -66,6 +66,24 @@ print(json.dumps(result))
         if probe.returncode != 0 or probe_value != expected:
             print(probe.stderr[-2000:])
             raise SystemExit(1)
+        network_probe = subprocess.run(
+            [
+                *command[:executable_index],
+                "/usr/bin/curl",
+                "-IsS",
+                "--max-time",
+                "10",
+                "https://api.anthropic.com/",
+            ],
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            timeout=30,
+            check=False,
+        )
+        if network_probe.returncode != 0:
+            print(network_probe.stderr[-2000:])
+            raise SystemExit(1)
         smoke_command = [*command[: executable_index + 1], "auth", "status"]
         completed = subprocess.run(
             smoke_command,
