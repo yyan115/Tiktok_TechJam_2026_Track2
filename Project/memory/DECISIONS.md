@@ -1,5 +1,58 @@
 # DECISIONS — plain-language diary of what we discussed and agreed
 
+## 30 Aug 2026 — replace prompt authority with an irreversible controller
+
+- The first official run demonstrated that the v0.5 design was unsafe: it
+  correctly detected convergence but exposed a general continuation override,
+  so Fable continued even after Sol identified the rules problem. A logged
+  override is still a rule violation; transparency does not make it legal.
+- The prior "cooperative trust model" ruling is superseded for competition
+  authority and hidden-data boundaries. These are now enforced out of process.
+- The latest Track 3 session and unfinished hostile authority-v4 review were
+  inspected directly. Adopted: independent mechanism portfolios, frozen exact
+  artifacts, concrete falsifiers, named adversarial checks, and a deny-only
+  critic. Rejected: prose owner quotes, caller-selected modes, regex hooks as
+  authority, asynchronous audits, reusable receipts, and semantic family IDs
+  presented as machine proof.
+- The OpenAI Cycle Double Cover prompt contributes search-management ideas, not
+  a permission to persist: keep independent approaches alive, track mechanism
+  families, block routes with theorem-strength gaps, require concrete evidence,
+  and adversarially test named failure modes. Its "do not stop" instruction is
+  explicitly scoped out whenever the deterministic controller is terminal.
+- The new Track 2 architecture puts the rules inside the actual runner. There
+  is one fixed journal and lock, no production overrides, an earliest-prefix
+  terminal latch, exact committed card/code binding, a synchronous independent
+  review invoked by the runner itself, crash recovery, and a final selected
+  only from the frozen prefix.
+- Candidate code now runs from immutable reviewed bytes in bubblewrap. Raw data,
+  the repository, results, parent processes, and networking are absent. The
+  trusted development process itself loads only sanitized data; raw labels are
+  first loaded after final_pending. Candidate validation and test feedback are
+  both zero. Primary-source KuaiRand documentation shows that the video
+  statistics aggregate engagement across a month, so those outcome-derived
+  features are withheld; the overlapping random log remains withheld pending
+  an organizer answer.
+- Track 3's later authority work was re-read rather than copied wholesale.
+  Track 2 adopts bounded semantic-review corrections, informative expected
+  ranges, installed-composition testing, and explicit authority roles. It does
+  not adopt Track 3-specific lifecycle states or claim that a hook is a live
+  gate.
+- A frozen primary-source research bank now resolves exact cited note ranges.
+  A diverse portfolio freezes the first four mechanism families and their
+  opening order. Sol review uses two direct no-tools calls and a third only on
+  disagreement; the controller recomputes the consensus and limits conclusive
+  rerolls.
+- The researcher is placed behind an outer service exposing only log/run RPCs.
+  Request/reply identity, crash recovery, socket ownership, exact Git commits,
+  and protected component bytes are checked outside the model process.
+- Honest residual: the outer model client currently needs shared networking.
+  Filesystem isolation and disabled web tooling do not prove resistance to a
+  deliberately malicious public-dataset download. Provider-only egress or a
+  dedicated VM is the mechanical deployment answer; prompts are not.
+- This work is harness-only. No replacement portfolio research, candidate
+  optimization, official iteration, or hidden-test evaluation is authorized by
+  this decision.
+
 ## 28 Aug 2026 — research, plan approval, and setup
 
 - **What this track is:** build an AI agent that autonomously improves a video-recommendation model — the agent writes the code, runs it, reads the scores, and decides what to try next, with per-iteration logs. Judged on: score improvement over the official baseline (hidden test set), how few human interventions the run needs, how failures are recovered, and how cheap the run is (LLM tokens + wall-clock).

@@ -1,49 +1,153 @@
-# Plan of Record — Track 2: Autonomous ML Research Agent (approved 28 Aug 2026)
+# Plan of record — Track 2 autonomous recommender research
 
-## The system in one line
+## Current outcome
 
-The same hardened cross-reviewed loop as Track 3, pointed at a recommender-system pipeline: Fable (Claude) proposes and codes improvements → the organizers' own scoring script judges them → every iteration is auto-journaled (hypothesis, the solution's full verbatim source + hash, metrics, errors/recovery — the journal IS a required competition deliverable; code diffs are derivable from consecutive journaled sources) → Sol (codex) reviews at checkpoints → the user retains final authority. Target: a fully autonomous run, zero manual interventions.
+The v0.5 override-based harness is retired. It could report convergence while
+still exposing a continuation option to the researcher. The replacement makes
+the first convergence, iteration-cap, or wall-time trigger an irreversible
+controller transition.
 
-## The task (plain words)
+This branch contains harness work only. No replacement official run, candidate
+evaluation, final score, or submission has begun. The original completed run
+and the user's original worktree are not modified.
 
-Rank each user's videos so the ones they'll watch long sit on top. Dataset: KuaiRand-Pure (Kuaishou short-video logs; label = `long_view`). Beat the official Factorization Machine baseline: **hidden-test primary 0.5946** (validation 0.6016). Score = your absolute improvement over that number on the hidden test. Real ceiling is **0.8645**, not 1.0 (27.1% of test users have no positive labels — unwinnable rows). All CPU; the baseline trains in ~40 s.
+## Roles and authority
 
-## What is graded (and how we serve each dial)
+```text
+owner: freeze/start/final
+          |
+external controller service: bound workspace + exact Git/run capability
+          |
+restricted Fable workspace: code/cards + five narrow tools only
+          |
+Sol semantic quorum: deny-only review of exact frozen bytes
+          |
+candidate bubblewrap: fixed inputs -> finite prediction arrays only
+          |
+trusted parent: validation scalar + immutable journal/terminal latch
+```
 
-- **Primary metric (in Technical Execution, 35%):** validation-best submission, test-scored once. Convergence rule: stop when validation primary improves ≤0.002 over 3 straight iterations; hard caps 50 iterations / 6 h.
-- **Robustness (same bucket):** errors must be recovered from, not avoided — every failure + recovery auto-logged.
-- **Autonomy (Impact, 20%):** graded by counting manual interventions. Target: zero. The journal carries an intervention counter.
-- **Feasibility (15%):** LLM tokens + wall-clock, coarse tiers, only among baseline-beaters — journal meters both.
-- **Innovation (20%):** judged on WHAT the agent chose to try and why — the journal's hypothesis field, grounded in fresh web research per idea (MLE-STAR style).
+Fable chooses research directions and writes code. Sol challenges semantic
+quality and rule fit. Neither model owns competition state. Only deterministic
+controller code can consume an attempt, latch a stop, or promote an artifact.
 
-## Integrity rules
+The researcher cannot call `start-run` or `final`, read Git history, edit the
+controller, inspect the journal, or access local datasets. The owner retains
+those lifecycle actions outside the researcher sandbox.
 
-- `kuairand-starter-kit/` code (evaluate.py, data.py, baseline.py, submit.py) is organizer ground truth: hash-pinned, never edited. Same deny-rules + guard-hook setup as Track 3.
-- **Hidden-test discipline (mechanically enforced by the harness):** solutions receive test rows with labels stripped — they cannot see a test label. Development feedback is validation-only; each run's test predictions are SEALED unscored, and `final` scores one designated sealed artifact exactly once (once-only + post-final refusals enforced, overrides journaled). The three organizer reference test scores reproduced at setup are their own published numbers (their explicit reproduce-the-baseline instruction) — no agent-designed solution's test metrics are ever revealed before the final. Historical status of the local test split, reviewer-endorsed verbatim: "not pristine — a bounded organizer-reference exception".
-- Promotion: an iteration becomes current-best on validation improvement. **Sol audits auto-fire mechanically per new best experiment** (hook-driven watcher → detached blind codex audit → verdict in Project/audits/verdicts.jsonl, shown by the digest; never blocking), plus the blocking checkpoints (harness freeze; final submission).
-- **Meter honesty (adopted 28 Aug from the cold-start drill's question):** no solution files are authored before the `start-run` marker — the graded wall-clock and autonomy meters measure the official run, and pre-drafting would understate them. Research, queue-ordering, and reading are fine pre-marker; solution code is not.
-- **Webinar policies (28 Aug, user-approved):** the final model trains on the TRAIN window only (never train+validation). Crash-restarts are NOT interventions (official ruling: only behavior changes count) — journal them as recovery events. The randomized-exposure log stays sanitized + validation-analysis-only until the organizers clarify its status. Video: optional per organizers, but WE ARE MAKING ONE (user decision). Development runs before the designated official run are fine and disclosed — the setup-phase/start-run design is officially sanctioned.
+Every live request carries both a durable logical workspace ID and a physical
+binding derived independently by the shell and service from canonical path,
+directory identity, and manifest bytes. A bounded two-phase WAL is fsynced
+before any consuming transition, reserves completion space in advance, and
+forbids automatic replay of an indeterminate request.
 
-## The hypothesis queue (seeded from the organizers' own tested guidance)
+## Organizer rules as state transitions
 
-Their published dead-ends (pre-loaded into LESSONS — never retry): more feature fields (no gain), bigger embeddings (no gain), pure user-side features (mathematically zero effect under within-user ranking).
-Their ranked untried directions, our starting order:
-1. **Ranking-aligned loss** — refined order per the dual strategy review: pairwise BPR on the existing FM representation first (lowest risk), then the in-user listwise objective; blend/rank-average diverse successes as a standing cheap win. (Their top bet and ours: the metric is a ranking metric, the baseline trains a pointwise classifier.)
-2. **User behavior sequences** (DIN/SIM-style interest modeling) — timestamps exist per interaction; completely unused today.
-3. **Multi-task heads** over the other 11 feedback signals (click, like, play_time_ms, …).
-4. **Watch-time modeling** (censored regression à la CWM, KDD'24).
-5. Model swaps (DeepFM/DCN/xDeepFM) — deprioritized; capacity is proven not the bottleneck.
-6. Time features / train→test drift.
-7. The randomized-exposure log as an unbiased extra validation set (also an innovation flourish).
-The agent re-orders this queue from its own results, does a fresh web search before each new idea, ends with an agent-designed ensemble of top diverse candidates (rank averaging), and never repeats a journaled failure. **Reflection ritual (mandatory):** after every iteration, append a one-line distilled lesson to LESSONS.md and re-rank the queue; read tools/digest.py output at each session start.
+- Required benchmark: KuaiRand-Pure.
+- Development feedback: trusted validation GAUC, nDCG@5, and their primary
+  mean; never validation row labels inside candidate code.
+- Convergence: after any three consecutive official outcomes, stop at the
+  earliest prefix whose validation best did not improve by more than 0.002.
+  Failed official attempts are non-improvements.
+- Backstops: 50 official attempts or six hours from the immutable `run_start`.
+- Selection: validation-best eligible checkpoint in the first terminal prefix,
+  with deterministic tie handling.
+- Hidden test: score the selected sealed predictions once, only after a durable
+  `final_pending` row.
 
-## Stages
+There is one production journal and no alternate ledger, force flag, early
+final, not-best selection, or continuation override. Later improvement cannot
+erase an earlier convergence.
 
-- **Stage 0 — Rails** (done at setup): starter kit unzipped + hash-pinned; dataset downloaded (gitignored); all three official baselines reproduced within published seed-noise (random 0.4757 / pop 0.5715 exact / FM 0.5953 vs 0.5946±0.0008); wiki + guardrails in place.
-- **Stage 1 — Iteration harness:** one command runs a candidate pipeline, scores validation via the organizers' evaluate.py, appends the journal (hypothesis, full verbatim solution source + hash, metrics, errors, tokens, wall-clock), tracks the current finalizable-best, and ENFORCES the convergence rule, budgets, and the mechanical leak-guards. Sol reviews it, user approves, freeze — same ceremony as Track 3.
-- **Stage 2 — The run:** the agent iterates the hypothesis queue autonomously to convergence or caps.
-- **Stage 3 — Final:** designate validation-best, score test once, generate + `--check` the submission CSV, package (report from the journal, resource totals, intervention count).
+## Research quality before evaluation
 
-## Authority
+Before `start-run`, build and commit a primary-source research bank. Each
+catalog claim resolves to an exact note hash and bounded line range. Hashes
+bind identity, not truth; the note must preserve source, supported claim,
+caveats, and a falsifying experiment.
 
-User holds: harness freeze approval, the "start the run" go, and sign-off on the final submission. Everything else is autonomous by design — that's the graded feature.
+The committed portfolio must contain at least four mechanistically distinct,
+evidence-grounded families and a frozen opening order. The first four official
+attempts must follow that order exactly, preventing early collapse onto one
+attractive idea. Later families require an explicit extension describing their
+nearest existing families, novel topics, and mechanism delta. Expected-score
+ranges must be finite, ordered, bounded, and informative.
+
+Every attempt card binds the run, exact next iteration, family, candidate path
+and SHA-256, evidence claims, falsifier, and every prior official outcome ID in
+chronological order.
+
+## Independent semantic review
+
+Portfolio, attempt, and final packets are reviewed through direct no-tools
+GPT-5.6 Sol calls with strict structured output. Two independent calls are
+always made; a third is made only when their accept/reject classes disagree.
+The majority result is replay-validated from the recorded calls.
+
+An exact request has a sticky verdict. A corrected artifact gets a new,
+content-derived request and must cite the rejected review. At most three
+conclusive semantic reviews are permitted for a portfolio or one attempt
+stage. Failed reviewer calls are separately capped at three; transport or
+schema failures never become approval and cannot loop forever.
+
+Review is deliberately deny-only. Approval is consumed immediately by the
+matching transition and cannot be reused or interpreted as an organizer-rule
+exception.
+
+## Data and execution boundaries
+
+At `start-run`, the controller creates an external immutable copy of every
+manifest-pinned organizer input and binds it to the current manifest bytes.
+The candidate derivative is narrower:
+
+- the two standard logs, static user features, and basic video features only;
+- exact approved CSV schemas and content hashes;
+- all feedback fields zero from 2022-04-22 onward, covering validation and test;
+- no random-exposure log while its split use remains unresolved;
+- no month-aggregated video engagement statistics, which can include future
+  outcome information;
+- no raw data, repository, journal, sealed output, or network.
+
+Candidate execution uses immutable reviewed bytes, a new user/mount/PID/IPC/UTS
+and network namespace, fixed runtime artifacts, resource limits, and an
+absolute deadline. Its public output is fixed-size finite validation/test
+prediction arrays plus row counts. Candidate stdout, stderr, exit details,
+free-form metadata, and hypothesis text do not cross the boundary.
+
+The trusted parent computes validation metrics and seals test predictions
+without scoring them. Raw test labels are first opened in the once-only final
+path.
+
+## Honest threat model
+
+The external HMAC journal authority, exact Git/object checks, controller
+service, and bubblewrap boundaries defend against accidental edits, model
+disobedience, stale state, and many same-user tampering paths. `.claude` hooks
+are advisory only.
+
+The outer Fable process still needs network access to reach its model provider.
+The filesystem boundary removes local benchmark data and built-in web/MCP
+tools should be disabled, but shared host networking alone cannot prove that a
+deliberately malicious process did not download public KuaiRand files. For
+mechanical egress enforcement, deploy the researcher in a dedicated VM or
+provider-only egress proxy. This residual is disclosed; it is not described as
+solved by prompts.
+
+## Lifecycle
+
+1. Finish implementation, primary-source review, hostile tests, and installed
+   composition tests using synthetic state only.
+2. Present the exact branch/diff and residual limitations to the user.
+3. After user approval, populate the real research bank and portfolio on a
+   standalone clean repository and freeze their exact commit.
+4. Only after a separate explicit user **go**, the owner invokes `start-run`.
+5. Fable iterates through the restricted service until the first terminal row.
+6. Only after a separate final authorization does the owner invoke `final`.
+7. Submission remains a separate human decision.
+
+## Meter honesty
+
+The journal records exact controller/attempt wall times and every reviewer
+call's model identity and reported usage. Agent-session token totals must come
+from provider records when the report is assembled and be labeled unavailable
+when they cannot be independently recovered.

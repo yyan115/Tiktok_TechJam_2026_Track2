@@ -1,0 +1,21 @@
+{
+  "schema_version": 2,
+  "benchmark": "KuaiRand-Pure",
+  "run_id": "copy the immutable run_id printed by start-run",
+  "iteration": 1,
+  "family_id": "one frozen portfolio family_id",
+  "card_type": "explore",
+  "candidate_path": "Project/solutions/s001_example.py",
+  "candidate_sha256": "64 lowercase hexadecimal characters",
+  "mechanism": "At least 50 characters: the precise mechanism this candidate implements.",
+  "hypothesis": "At least 50 characters: a directional, metric-linked, falsifiable prediction.",
+  "change_summary": "At least 40 characters: exact changes from the relevant prior candidate.",
+  "falsifier": "At least 30 characters: the observed outcome that rejects this idea.",
+  "why_now": "At least 40 characters: why current evidence makes this the next best use of an iteration.",
+  "expected_primary_delta": {"min": -0.005, "max": 0.01},
+  "research_basis": [
+    {"claim_id": "replace.with.catalog.claim", "relationship": "constrains", "target": "hypothesis"}
+  ],
+  "family_extension": null,
+  "prior_outcomes_considered": []
+}

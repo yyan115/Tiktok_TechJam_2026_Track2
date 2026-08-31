@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "track2_controller": {
+      "type": "stdio",
+      "command": "/usr/bin/python3",
+      "args": ["-I", "/control/controller_mcp.py"]
+    }
+  }
+}

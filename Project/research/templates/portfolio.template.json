@@ -1,0 +1,63 @@
+{
+  "schema_version": 2,
+  "benchmark": "KuaiRand-Pure",
+  "selection_rubric": "Explain in at least 100 characters how independent mechanisms will be compared, how duplicate ideas will be detected, how evidence quality affects ordering, and how blocked families will be handled.",
+  "opening_order": [
+    "family_one",
+    "family_two",
+    "family_three",
+    "family_four"
+  ],
+  "families": [
+    {
+      "family_id": "family_one",
+      "mechanism": "At least 60 characters describing the distinct mechanism, not merely a model or parameter name.",
+      "causal_claim": "At least 50 characters stating why this mechanism should improve the official within-user ranking metric.",
+      "smallest_experiment": "At least 40 characters describing the smallest decisive official experiment.",
+      "falsifier": "At least 30 characters describing a concrete observation that would reject the claim.",
+      "known_risks": "At least 20 characters naming leakage, overfit, compute, or implementation risks.",
+      "expected_primary_delta": {"min": -0.01, "max": 0.01},
+      "bank_topics": ["metric.within_user", "model.family_one"],
+      "research_basis": [
+        {
+          "claim_id": "replace.with.catalog.claim",
+          "relationship": "supports",
+          "target": "causal_claim"
+        }
+      ]
+    },
+    {
+      "family_id": "family_two",
+      "mechanism": "Replace this with a second genuinely different mechanism described in sufficient detail.",
+      "causal_claim": "State a causal claim tied specifically to the official ranking task and metric.",
+      "smallest_experiment": "State the smallest experiment that could distinguish this claim from the incumbent.",
+      "falsifier": "State the result that would make the agent stop pursuing this family.",
+      "known_risks": "State the most important concrete risks.",
+      "expected_primary_delta": {"min": -0.01, "max": 0.01},
+      "bank_topics": ["metric.within_user", "model.family_two"],
+      "research_basis": [{"claim_id": "replace.with.catalog.claim", "relationship": "constrains", "target": "mechanism"}]
+    },
+    {
+      "family_id": "family_three",
+      "mechanism": "Replace this with a third genuinely different mechanism described in sufficient detail.",
+      "causal_claim": "State a causal claim tied specifically to the official ranking task and metric.",
+      "smallest_experiment": "State the smallest experiment that could distinguish this claim from the incumbent.",
+      "falsifier": "State the result that would make the agent stop pursuing this family.",
+      "known_risks": "State the most important concrete risks.",
+      "expected_primary_delta": {"min": -0.01, "max": 0.01},
+      "bank_topics": ["metric.within_user", "model.family_three"],
+      "research_basis": [{"claim_id": "replace.with.catalog.claim", "relationship": "supports", "target": "causal_claim"}]
+    },
+    {
+      "family_id": "family_four",
+      "mechanism": "Replace this with a fourth genuinely different mechanism described in sufficient detail.",
+      "causal_claim": "State a causal claim tied specifically to the official ranking task and metric.",
+      "smallest_experiment": "State the smallest experiment that could distinguish this claim from the incumbent.",
+      "falsifier": "State the result that would make the agent stop pursuing this family.",
+      "known_risks": "State the most important concrete risks.",
+      "expected_primary_delta": {"min": -0.01, "max": 0.01},
+      "bank_topics": ["metric.within_user", "model.family_four"],
+      "research_basis": [{"claim_id": "replace.with.catalog.claim", "relationship": "nearest", "target": "mechanism"}]
+    }
+  ]
+}

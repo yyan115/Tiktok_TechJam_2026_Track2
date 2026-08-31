@@ -1,25 +1,61 @@
 # STATE — read this first in every session
 
-Updated: 2026-08-28 16:40 (webinar policies folded into plan; awaiting user freeze steps)
+Updated: 2026-08-30 (harness hardening; no official rerun)
 
-## Where we are
-- Research + plan approved by user (28 Aug morning): see Project/PLAN.md. This repo mirrors Track 3's architecture (user's repo: ../Tiktok_TechJam_2026_Track3 — read its DECISIONS.md for the full origin story).
-- Stage 0 DONE: starter kit unzipped + hash-pinned (Project/manifest.json), dataset downloaded (gitignored — re-download command in .gitignore header), all three official baselines reproduced within published seed noise. Guardrails + wiki in place.
-- Stage 1 (iteration harness) now v0.5.0-unfrozen after codex rounds 1-4. Round-2 adoptions: validation-best/error-free/termination gates on `final` (overrides need journaled reasons); test metric computed from the checker-PARSED submission CSV (exact artifact parity); fail-closed ledger reads for final/run gates + final lockfile; per-iteration timeout (SIGALRM, journaled); 6h clock anchored to a journaled `start-run` marker; probe-before-seal ordering; pre-exec source provenance (crash paths keep sha+source, verified); suspicious-source scanner flags journaled; manifest sha in entries. Round-2 items OVERRULED under the declared cooperative trust model (same residual codex accepted on Track 3): out-of-process isolation, frame-walking/conditional-mutation attacks, raw-CSV rereads by solutions — detection-and-audit, not prevention. Earlier v0.2.0 adoptions: mechanical test-label stripping, evaluator tamper probes, sealed test predictions, enforced once-only final (+ crash-evidence marker + official checker), enforced convergence/cap/6h-ceiling with journaled overrides, complete journal provenance (harness sha, git state, dataset hashes, verbatim solution source). Proven end-to-end: iteration 2 at valid primary 0.6015; full final wiring proven on a scratch ledger (delta +0.0007 = published baseline; once-only and post-final refusals verified).
-- Harness v0.5.0 review loop CLOSED at round 12: YES, no remaining blockers (verdict: Project/audits/track2_harness_verdict_round12.md). FREEZE APPROVED (user, settings verified; locks arm at next restart — see DECISIONS). Awaiting the user's "go track 2" for the official start-run. Pre-run follow-up: hash-compare our pinned starter kit against the latest wiki download (webinar mentioned a toolkit update; read-only check). Every round since round 5 has judged the executable freeze-ready; rounds 5-8 verdicts blocked on documentation consistency (round 6's fixes did include two small executable hardening changes — fail-closed empty sanitized section, per-ledger final locks — per the round-5 notes). Rounds 4-7 diary entries were backfilled in one commit; from round 8 onward the standing policy applies prospectively: each round's record lands in the same commit as its fixes. After the YES: user freeze, then the run. Round-4 adoptions: randomized log sanitized too; sanitized hashes ENFORCED by verify_hashes; official-run scoping (budget/convergence/best count from the start-run marker; prior entries = setup phase, resolving the setup-converged ledger); ledger-identity namespaces for seals/CSV; base fields + random-suffix ids on every entry type; raw-seconds gating; scanner catches path-join/read_csv forms; crash entries best-effort-recover HYPOTHESIS from source (simple quoted assignments only — a documented limitation; full source is journaled regardless). Memory upgrades added per user approval: tools/digest.py (session-start journal view) + mandatory reflection ritual in PLAN.
-- Optimization budget: 0 of 50 OFFICIAL iterations used; 5 setup-phase iterations journaled (baseline reproductions across harness versions). Budget, convergence and the 6h clock all start at `start-run`. Historical test-split status, verbatim: "not pristine — a bounded organizer-reference exception".
+## Current state
 
-## Standing rules (never violate)
-1. Never edit: kuairand-starter-kit/** (organizer ground truth — evaluate.py is the sole scoring authority), README.md, Project/manifest.json, Project/results/** (harness-written only), .claude/**. After freeze: Project/harness/.
-2. The agent develops on train + validation ONLY. Test labels are on disk but off-limits until the one final scoring of the designated submission.
-3. Every iteration goes through the harness and gets journaled: hypothesis, full verbatim solution source + hash (diffs derivable between consecutive entries), validation metrics, errors/recovery, tokens, wall-clock. The journal is a required competition deliverable.
-4. Check LESSONS.md before working — it contains organizer-verified dead ends that must never be retried.
-5. Plain language to the user; explicit user "go" before starting the autonomous run.
+- The first completed KuaiRand-Pure run is untouched. The user asked the
+  organizers whether a clean rerun is allowed.
+- All replacement work is isolated in
+  \`/tmp/tiktok-track2-harness-hardening\` on branch
+  \`track2-harness-hardening\`, based on the clean pre-run commit. The original
+  dirty repository and the separate rerun worktree are untouched.
+- No replacement \`run_start\`, official attempt, candidate score, hidden-test
+  score, final artifact, submission, or real reviewer API call has occurred.
+- The old general override path is gone. Earliest convergence, cap, deadline,
+  and final-pending states are structurally irreversible.
 
-## Next actions (in order)
-1. Sol (codex) checkpoint review of iterate.py → user approves → freeze (same ceremony as Track 3; bind the review to a committed sha, per Track 3's lesson 13).
-2. User says go → autonomous run on the hypothesis queue (PLAN.md) → convergence → final submission + test-scored once.
+## Implemented architecture
 
-## Blocked / needs user
-- Harness freeze approval (after it's built + Sol-reviewed).
-- The "start the run" go.
+- External owner-private HMAC journal authority and immutable input snapshot.
+- Exact state-machine replay with strict row shapes, adjacency, chronology,
+  review-consensus replay, family registration, and terminal/final binding.
+- Outer Unix-socket controller service exposing only \`log\` and \`run\` to the
+  researcher; owner-only \`start-run\`, \`final\`, and \`intervention\`.
+- Restricted researcher mount graph with no Git metadata, controller, results,
+  manifest, dataset, raw labels, or normal home.
+- Frozen primary-source research bank and four-family opening-order protocol.
+- Direct no-tools GPT-5.6 Sol quorum: two calls, third only on disagreement,
+  sticky exact verdicts, bounded corrections.
+- Candidate bubblewrap with mandatory network namespace, immutable exact code
+  and runtime files, resource/deadline limits, and prediction-only output.
+- Candidate data contains the standard logs, user features, and basic video
+  features with exact schemas. Validation/test feedback is zero. The unresolved
+  random log and month-aggregate engagement statistics are withheld.
+
+## Work still in progress
+
+- Finish client request crash recovery and socket/response authentication.
+- Finish documentation and owner-private installed-composition test.
+- Run the complete unit suite, real synthetic bubblewrap test, Unix-socket
+  integration, syntax/diff checks, and final independent hostile audit.
+- Freeze only after the user has reviewed the final diff and remaining
+  limitations.
+
+## Honest limitations
+
+- The outer Fable process currently shares host networking because its model
+  client needs provider access. Local benchmark data and built-in web/MCP
+  capabilities are removed, but arbitrary host egress is not a proof against a
+  deliberately malicious download. Provider-only egress or a dedicated VM is
+  required to make that boundary mechanical.
+- Hashes prove exact identity and provenance, not that a cited research claim
+  is true. Sol supplies semantic skepticism; deterministic policy owns rules.
+- Same-UID root/ptrace/kernel compromise is outside this cooperative process
+  boundary. The design does not claim hostile-machine isolation.
+
+## Non-negotiable next gate
+
+Complete harness verification, report the exact outcome, then stop. Await a
+fresh explicit user **go** before real benchmark research, \`start-run\`, or any
+official attempt.

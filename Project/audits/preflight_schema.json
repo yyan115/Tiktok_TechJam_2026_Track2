@@ -1,0 +1,35 @@
+{
+  "type": "object",
+  "properties": {
+    "verdict": {
+      "type": "string",
+      "enum": ["APPROVE", "APPROVE_WITH_NOTES", "REJECT"]
+    },
+    "findings": {
+      "type": "array",
+      "maxItems": 24,
+      "items": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 64,
+            "pattern": "^[A-Z0-9_-]+$"
+          },
+          "severity": {
+            "type": "string",
+            "enum": ["blocker", "major", "minor", "note"]
+          },
+          "evidence": {"type": "string", "minLength": 3, "maxLength": 2000},
+          "issue": {"type": "string", "minLength": 10, "maxLength": 4000}
+        },
+        "required": ["code", "severity", "evidence", "issue"],
+        "additionalProperties": false
+      }
+    },
+    "summary": {"type": "string", "minLength": 1, "maxLength": 4000}
+  },
+  "required": ["verdict", "findings", "summary"],
+  "additionalProperties": false
+}

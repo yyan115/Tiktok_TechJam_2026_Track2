@@ -11,10 +11,16 @@
       "Write(Project/manifest.json)",
       "Edit(Project/results/**)",
       "Write(Project/results/**)",
-      "Edit(.claude/**)",
-      "Write(.claude/**)",
       "Edit(Project/harness/**)",
-      "Write(Project/harness/**)"
+      "Write(Project/harness/**)",
+      "Edit(Project/tools/preflight_review.py)",
+      "Write(Project/tools/preflight_review.py)",
+      "Edit(Project/audits/preflight_schema.json)",
+      "Write(Project/audits/preflight_schema.json)",
+      "Edit(Project/audits/preflight/**)",
+      "Write(Project/audits/preflight/**)",
+      "Edit(.claude/**)",
+      "Write(.claude/**)"
     ]
   },
   "hooks": {
@@ -36,22 +42,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "echo '=== PROJECT STATE (auto-injected by SessionStart hook; read Project/PLAN.md for the full plan) ==='; cat \"$CLAUDE_PROJECT_DIR/Project/memory/STATE.md\" 2>/dev/null || echo 'STATE.md not found'",
+            "command": "cat \"$CLAUDE_PROJECT_DIR/Project/memory/STATE.md\" 2>/dev/null || true",
             "timeout": 10
-          }
-        ]
-      }
-    ],
-    "PostToolUse": [
-      {
-        "matcher": "Bash",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "python3 \"$CLAUDE_PROJECT_DIR/Project/tools/best_watch.py\" 2>/dev/null || true",
-            "async": true,
-            "timeout": 30,
-            "statusMessage": "Champion watch"
           }
         ]
       }
