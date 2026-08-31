@@ -82,8 +82,8 @@ def _verify_runtime() -> dict[str, Any]:
         raise DoctorError("the locked CUDA-enabled PyTorch runtime is unavailable")
     if cuda["device"] != lock["target_gpu"]:
         raise DoctorError("GPU differs from runtime-lock.json")
-    if actual["bubblewrap"] is None or actual["claude"] is None:
-        raise DoctorError("bubblewrap or Claude CLI is missing")
+    if any(actual[name] is None for name in ("bubblewrap", "codex", "claude")):
+        raise DoctorError("bubblewrap, Codex CLI, or Claude CLI is missing")
     value = torch.ones((256, 256), device="cuda").square().sum().item()
     if value != 65536.0:
         raise DoctorError("CUDA arithmetic smoke check failed")
@@ -92,6 +92,7 @@ def _verify_runtime() -> dict[str, Any]:
         "packages": actual["packages"],
         "cuda": cuda,
         "bubblewrap": actual["bubblewrap"],
+        "codex": actual["codex"],
         "claude": actual["claude"],
     }
 

@@ -41,6 +41,10 @@ sanitized errors and aggregate metrics, reflects, and repairs or changes directi
 without asking the owner. The controller stops mechanically and finalizes the
 earliest validation-best checkpoint.
 
+The researcher is OpenAI GPT-5.6 Sol at maximum reasoning effort. The independent
+critic is Claude Opus 5 at maximum effort. Both identities are recorded in their
+agent traces.
+
 There is no continuation flag, owner signature ceremony, AI-owned attempt counter,
 uncounted shadow training, mutable dashboard, or general-purpose candidate shell.
 
@@ -68,8 +72,8 @@ Run the non-scoring readiness check:
 
 It verifies raw and derived hashes, the absence of cached test labels, package
 versions, CUDA arithmetic, real Bubblewrap isolation in both attempt and final
-modes, and isolated Claude authentication. It neither invokes a model nor scores a
-benchmark split.
+modes, and isolated Codex and Claude authentication. It neither invokes a model nor
+scores a benchmark split.
 
 Development regression tests:
 

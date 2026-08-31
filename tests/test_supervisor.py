@@ -73,3 +73,41 @@ def test_tool_trace_distinguishes_real_read_from_prompt_text() -> None:
     )
     uses = observed_tool_uses(trace)
     assert uses == [{"name": "Read", "input": {"file_path": "/guidance/PROBLEM.md"}}]
+
+
+def test_tool_trace_reads_codex_commands_and_web_search() -> None:
+    trace = "\n".join(
+        [
+            json.dumps(
+                {
+                    "type": "item.completed",
+                    "item": {
+                        "type": "command_execution",
+                        "command": "cat /guidance/PROBLEM.md",
+                        "aggregated_output": "problem text",
+                        "exit_code": 0,
+                        "status": "completed",
+                    },
+                }
+            ),
+            json.dumps(
+                {
+                    "type": "item.completed",
+                    "item": {
+                        "type": "web_search",
+                        "action": {"type": "search", "query": "KuaiRand paper"},
+                    },
+                }
+            ),
+        ]
+    )
+    assert observed_tool_uses(trace) == [
+        {
+            "name": "CommandExecution",
+            "input": {
+                "command": "cat /guidance/PROBLEM.md",
+                "output": "problem text",
+            },
+        },
+        {"name": "WebSearch", "input": {"query": "KuaiRand paper"}},
+    ]

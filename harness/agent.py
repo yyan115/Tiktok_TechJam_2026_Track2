@@ -24,6 +24,9 @@ class AgentResult:
     stdout: str
     stderr: str
     structured: dict[str, Any] | None = None
+    provider: str | None = None
+    model: str | None = None
+    effort: str = "max"
 
 
 class ClaudeAgentRunner:
@@ -190,6 +193,8 @@ class ClaudeAgentRunner:
                 wall_seconds=time.monotonic() - started,
                 stdout=exc.stdout or "",
                 stderr=exc.stderr or "",
+                provider="anthropic",
+                model=model,
             )
         structured = None
         status = "ok" if completed.returncode == 0 else "agent_error"
@@ -212,4 +217,160 @@ class ClaudeAgentRunner:
             stdout=completed.stdout,
             stderr=completed.stderr,
             structured=structured,
+            provider="anthropic",
+            model=model,
+        )
+
+
+class CodexAgentRunner:
+    """Run the OpenAI researcher inside the same narrow filesystem boundary."""
+
+    def __init__(self, guidance_dir: Path = ROOT / "guidance") -> None:
+        self.guidance_dir = guidance_dir.resolve()
+        self.bwrap = Path(shutil.which("bwrap") or "")
+        self.codex = Path(shutil.which("codex") or "")
+        if not self.bwrap.is_file() or not self.codex.is_file():
+            raise AgentError("codex and bubblewrap are required")
+
+    def _command(
+        self,
+        workspace: Path,
+        *,
+        evidence_dir: Path | None = None,
+        model: str,
+    ) -> list[str]:
+        auth = Path.home() / ".codex" / "auth.json"
+        if not auth.is_file():
+            raise AgentError("Codex authentication file is missing")
+        command = [
+            str(self.bwrap),
+            "--die-with-parent",
+            "--new-session",
+            "--ro-bind",
+            "/usr",
+            "/usr",
+            "--ro-bind",
+            "/lib64",
+            "/lib64",
+            "--ro-bind",
+            "/etc",
+            "/etc",
+            "--proc",
+            "/proc",
+            "--dev",
+            "/dev",
+            "--ro-bind",
+            "/sys",
+            "/sys",
+            "--dir",
+            "/run",
+            "--dir",
+            "/run/systemd",
+            "--dir",
+            "/run/systemd/resolve",
+            "--ro-bind",
+            "/run/systemd/resolve/stub-resolv.conf",
+            "/run/systemd/resolve/stub-resolv.conf",
+            "--tmpfs",
+            "/tmp",
+            "--dir",
+            "/home",
+            "--dir",
+            "/home/researcher",
+            "--dir",
+            "/home/researcher/.codex",
+            "--ro-bind",
+            str(auth),
+            "/home/researcher/.codex/auth.json",
+            "--ro-bind",
+            str(self.guidance_dir),
+            "/guidance",
+            "--bind",
+            str(workspace.resolve()),
+            "/workspace",
+            "--chdir",
+            "/workspace",
+            "--setenv",
+            "HOME",
+            "/home/researcher",
+            "--setenv",
+            "CODEX_HOME",
+            "/home/researcher/.codex",
+            "--setenv",
+            "PATH",
+            "/usr/local/bin:/usr/bin",
+        ]
+        if evidence_dir is not None:
+            evidence_dir.mkdir(parents=True, exist_ok=True)
+            command.extend(
+                ["--ro-bind", str(evidence_dir.resolve()), "/evidence"]
+            )
+        command.extend(
+            [
+                str(self.codex),
+                "-a",
+                "never",
+                "-s",
+                "workspace-write",
+                "--search",
+                "exec",
+                "--ignore-user-config",
+                "--ignore-rules",
+                "--ephemeral",
+                "--skip-git-repo-check",
+                "-m",
+                model,
+                "-c",
+                'model_reasoning_effort="max"',
+                "--json",
+                "-",
+            ]
+        )
+        return command
+
+    def run(
+        self,
+        workspace: Path,
+        prompt: str,
+        *,
+        evidence_dir: Path | None = None,
+        model: str = "gpt-5.6-sol",
+        tools: str = "Read,Write,Edit,Glob,Grep,WebSearch,WebFetch",
+        timeout_seconds: int = 1800,
+        structured_schema: Path | None = None,
+    ) -> AgentResult:
+        del tools
+        if structured_schema is not None:
+            raise AgentError("the Codex researcher does not produce critic verdicts")
+        workspace.mkdir(parents=True, exist_ok=True)
+        command = self._command(workspace, evidence_dir=evidence_dir, model=model)
+        started = time.monotonic()
+        try:
+            completed = subprocess.run(
+                command,
+                input=prompt,
+                text=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                timeout=timeout_seconds,
+                check=False,
+            )
+        except subprocess.TimeoutExpired as exc:
+            return AgentResult(
+                status="timeout",
+                returncode=None,
+                wall_seconds=time.monotonic() - started,
+                stdout=exc.stdout or "",
+                stderr=exc.stderr or "",
+                provider="openai",
+                model=model,
+            )
+        return AgentResult(
+            status="ok" if completed.returncode == 0 else "agent_error",
+            returncode=completed.returncode,
+            wall_seconds=time.monotonic() - started,
+            stdout=completed.stdout,
+            stderr=completed.stderr,
+            provider="openai",
+            model=model,
         )

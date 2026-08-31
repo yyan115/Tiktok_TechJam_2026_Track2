@@ -7,7 +7,7 @@ import time
 from pathlib import Path
 from typing import Any
 
-from harness.agent import AgentResult, ClaudeAgentRunner
+from harness.agent import AgentResult, ClaudeAgentRunner, CodexAgentRunner
 from harness.controller import Controller, ControllerError, _validate_source
 from harness.eda import EDAService
 from harness.spec import ROOT, canonical_json_bytes, sha256_file
@@ -24,6 +24,9 @@ REQUIRED_RESEARCH_READS = (
     "/guidance/RESEARCHER.md",
 )
 
+RESEARCHER_MODEL = "gpt-5.6-sol"
+CRITIC_MODEL = "opus"
+
 
 def observed_tool_uses(stream_json: str) -> list[dict[str, Any]]:
     uses: list[dict[str, Any]] = []
@@ -32,6 +35,27 @@ def observed_tool_uses(stream_json: str) -> list[dict[str, Any]]:
         if isinstance(value, dict):
             if value.get("type") == "tool_use" and isinstance(value.get("name"), str):
                 uses.append({"name": value["name"], "input": value.get("input", {})})
+            if (
+                value.get("type") == "command_execution"
+                and value.get("status") == "completed"
+                and value.get("exit_code") == 0
+            ):
+                uses.append(
+                    {
+                        "name": "CommandExecution",
+                        "input": {
+                            "command": value.get("command", ""),
+                            "output": value.get("aggregated_output", ""),
+                        },
+                    }
+                )
+            if value.get("type") == "web_search":
+                action = value.get("action", {})
+                query = value.get("query") or (
+                    action.get("query", "") if isinstance(action, dict) else ""
+                )
+                if query:
+                    uses.append({"name": "WebSearch", "input": {"query": query}})
             for item in value.values():
                 visit(item)
         elif isinstance(value, list):
@@ -105,16 +129,14 @@ class Supervisor:
         workspace: Path,
         *,
         controller: Controller | None = None,
-        agent: ClaudeAgentRunner | None = None,
-        researcher_model: str = "fable",
-        critic_model: str = "sonnet",
+        researcher_agent: CodexAgentRunner | None = None,
+        critic_agent: ClaudeAgentRunner | None = None,
     ) -> None:
         self.run_dir = run_dir.resolve()
         self.workspace = workspace.resolve()
         self.controller = controller or Controller(self.run_dir)
-        self.agent = agent or ClaudeAgentRunner()
-        self.researcher_model = researcher_model
-        self.critic_model = critic_model
+        self.researcher_agent = researcher_agent or CodexAgentRunner()
+        self.critic_agent = critic_agent or ClaudeAgentRunner()
         self.traces = self.run_dir / "agent-traces"
         self.evidence = self.run_dir / "evidence"
 
@@ -134,6 +156,9 @@ class Supervisor:
             "stdout": result.stdout,
             "stderr": result.stderr,
             "structured": result.structured,
+            "provider": result.provider,
+            "model": result.model,
+            "effort": result.effort,
         }
         (self.traces / f"{number:04d}-{role}.json").write_bytes(canonical_json_bytes(payload))
 
@@ -154,11 +179,11 @@ class Supervisor:
             "Do not merely explain what you would do: create the requested workspace file, "
             "then stop.\n\nCURRENT PHASE:\n" + task
         )
-        result = self.agent.run(
+        result = self.researcher_agent.run(
             self.workspace,
             prompt,
             evidence_dir=self.evidence,
-            model=self.researcher_model,
+            model=RESEARCHER_MODEL,
             timeout_seconds=self._remaining_seconds(1800),
         )
         self._record_agent_result("researcher", result)
@@ -168,12 +193,13 @@ class Supervisor:
         read_inputs = [
             json.dumps(use.get("input", {}), sort_keys=True)
             for use in uses
-            if use["name"].lower() == "read"
+            if use["name"].lower() in {"read", "commandexecution"}
         ]
         if not all(any(path in item for item in read_inputs) for path in required_reads):
             return False
         if require_web_research and not any(
-            use["name"].lower() in {"websearch", "webfetch"} for use in uses
+            use["name"].lower() in {"websearch", "webfetch", "web_search"}
+            for use in uses
         ):
             return False
         return True
@@ -188,11 +214,11 @@ class Supervisor:
         )
         schema = ROOT / "guidance" / "critic_schema.json"
         for _ in range(2):
-            result = self.agent.run(
+            result = self.critic_agent.run(
                 self.workspace,
                 prompt,
                 evidence_dir=self.evidence,
-                model=self.critic_model,
+                model=CRITIC_MODEL,
                 tools="Read,WebSearch,WebFetch",
                 timeout_seconds=self._remaining_seconds(600),
                 structured_schema=schema,
@@ -464,8 +490,6 @@ def main() -> None:
     parser.add_argument("--run-dir", type=Path, required=True)
     parser.add_argument("--workspace", type=Path, required=True)
     parser.add_argument("--policy", type=Path)
-    parser.add_argument("--researcher-model", default="fable")
-    parser.add_argument("--critic-model", default="sonnet")
     args = parser.parse_args()
     controller = Controller(args.run_dir)
     if controller.view().initialized is None:
@@ -476,8 +500,6 @@ def main() -> None:
         args.run_dir,
         args.workspace,
         controller=controller,
-        researcher_model=args.researcher_model,
-        critic_model=args.critic_model,
     )
     print(json.dumps(supervisor.run(), sort_keys=True))
 

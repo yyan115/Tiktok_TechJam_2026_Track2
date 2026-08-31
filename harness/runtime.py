@@ -78,6 +78,7 @@ def runtime_fingerprint() -> dict[str, Any]:
             ),
         },
         "bubblewrap": _version("bwrap"),
+        "codex": _version("codex"),
         "claude": _version("claude"),
         "trusted_code_sha256": trusted_code_hashes(),
     }
