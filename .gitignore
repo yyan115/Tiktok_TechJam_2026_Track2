@@ -1,0 +1,2 @@
+# Local benchmark data; never commit raw archives or extracted labels.
+datasets/
