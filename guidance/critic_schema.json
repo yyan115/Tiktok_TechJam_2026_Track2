@@ -1,0 +1,24 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "hard_block": {"type": "boolean"},
+    "decision": {"type": "string", "enum": ["accept", "accept_with_notes", "revise"]},
+    "findings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "severity": {"type": "string", "enum": ["block", "warning", "note"]},
+          "issue": {"type": "string"},
+          "evidence": {"type": "string"},
+          "correction": {"type": "string"}
+        },
+        "required": ["severity", "issue", "evidence", "correction"]
+      }
+    },
+    "strategy_notes": {"type": "array", "items": {"type": "string"}}
+  },
+  "required": ["hard_block", "decision", "findings", "strategy_notes"]
+}

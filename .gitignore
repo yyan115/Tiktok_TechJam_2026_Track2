@@ -1,2 +1,10 @@
 # Local benchmark data; never commit raw archives or extracted labels.
 datasets/
+
+# Local runtime and generated campaign state.
+.venv/
+__pycache__/
+.pytest_cache/
+runs/
+workspace/
+config/campaign.local.json
