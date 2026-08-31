@@ -1,0 +1,14 @@
+{
+  "benchmark_id": "kuairand-1k",
+  "epsilon": 0.002,
+  "window_scored_iterations": 3,
+  "minimum_scored_iterations": 15,
+  "max_attempts": 50,
+  "max_wall_seconds": 21600,
+  "candidate_timeout_seconds": 3600,
+  "max_candidate_output_bytes": 2147483648,
+  "selection": "earliest validation-best checkpoint at terminal",
+  "tie_break": "earliest attempt",
+  "failed_attempts_advance_convergence": false,
+  "note": "Frozen before the official run: organizer-default epsilon and window, with an approved 15-scored-iteration floor"
+}
