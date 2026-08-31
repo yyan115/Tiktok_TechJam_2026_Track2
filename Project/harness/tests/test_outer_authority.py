@@ -2237,11 +2237,11 @@ class ControllerLogSurfaceTests(unittest.TestCase):
         attempts = [
             {
                 "entry_id": "outcome-early", "iteration": 1,
-                "valid_metrics": {"primary": 0.1}, "card": {},
+                "valid_metrics": {"primary": 0.1}, "card": {"expected_primary_delta": {"min": 0.0, "max": 0.01}},
             },
             {
                 "entry_id": "outcome-late", "iteration": 2,
-                "valid_metrics": {"primary": 0.2}, "card": {},
+                "valid_metrics": {"primary": 0.2}, "card": {"expected_primary_delta": {"min": 0.0, "max": 0.01}},
             },
         ]
         journal = [{
