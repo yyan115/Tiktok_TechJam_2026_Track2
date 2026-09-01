@@ -284,7 +284,4 @@ proposed and implemented candidate experiments; Codex supplied independent
 reviews. AI systems are listed as tools, not team members.
 
 The copied Track 2 brief is preserved in
-[docs/TRACK_2_PROBLEM_STATEMENT.md](docs/TRACK_2_PROBLEM_STATEMENT.md). The
-workshop transcript and participant notes are in [MEETING-NOTES.md](MEETING-NOTES.md);
-the transcript records the track owner's statement that a video was optional
-provided the written report was sufficiently detailed.
+[docs/TRACK_2_PROBLEM_STATEMENT.md](docs/TRACK_2_PROBLEM_STATEMENT.md).
