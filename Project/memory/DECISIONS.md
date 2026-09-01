@@ -47,11 +47,11 @@
 
 - **Final handoff drills (both repos, zero-context read-only agents): PASSED.** Both independently verified hashes, closed loops, and pending user gates; correctly refused to act. Adopted from their findings: Track 3's sibling-status staleness fixed; the amendment-bundling suggestion (one re-freeze for shape-14 oracle + official subcommand); and the meter-honesty policy above (no solution authoring before start-run).
 
-## 28 Aug 2026 afternoon — Track 2 webinar intel (user-provided transcript + slides 8-9; MEETING-NOTES.md)
+## 28 Aug 2026 afternoon — Track 2 organizer guidance
 
 Adopted into the plan (user-approved):
-- **Video is officially optional for this track** (organizer will update the statement) — but the USER CHOOSES TO MAKE ONE anyway. Kept in deliverables; the report stays detailed regardless.
-- **Slide 9 confirms our design verbatim:** the agent sees the training split and public validation "used freely, every iteration"; it never sees the hidden test; "final ranking is computed once … from the submission the agent marks as final." Our mechanical label-strip + sealed once-only final is the official diagram, implemented.
+- **Video is officially optional for this track.** The final packaging decision was to submit the detailed written report without a video.
+- **Split and finalization guidance confirms our design:** the agent sees the training split and public validation "used freely, every iteration"; it never sees the hidden test; "final ranking is computed once … from the submission the agent marks as final." Our mechanical label-strip + sealed once-only final implements that policy.
 - **Final-model policy:** train on the TRAIN window only — never fold validation into final training (the engineer's own words plus his war story: touching test data once cost his production model ~10 AUC points; quotable in the report as motivation for our mechanical guards).
 - **Intervention definition (official):** only changes to the agent's BEHAVIOR count as manual interventions; restarting a crashed process — manually or via a second babysitter session — does not. → Our journal treats restarts as recovery events (which are separately graded evidence of robustness); the intervention counter tracks behavior changes only.
 - **Designated-run confirmation:** multiple development runs are fine; one official run is designated; earlier runs are disclosed. Exactly our setup-phase / start-run design.
@@ -102,7 +102,7 @@ Token-metering methodology, standing: per-iteration --tokens are self-reported e
 
 - Once-only `final` executed on it15 (20260828-204207-8fb9a6): **hidden-test primary 0.595879** (GAUC 0.6625624 / nDCG@5 0.5291955) vs published baseline 0.5946 → **delta +0.0013**. Validation +0.0015 transferred to test +0.0013 — the selection on validation was honest.
 - Submission CSV written and validated with the organizers' own checker (170,588 rows, alignment OK; sha 45b221e5d3ded00d…). Journal holds final_pending + final entries; the once-only rule is now consumed.
-- Who pressed the button: the agent, on the user's explicit go — matching slide 9's "computed once from the submission the agent marks as final"; the user's sign-off is recorded here per the PLAN's authority split.
+- Who pressed the button: the agent, on the user's explicit go — matching the organizer's rule that final ranking is "computed once from the submission the agent marks as final"; the user's sign-off is recorded here per the PLAN's authority split.
 - Next: packaging (report from journal, judge-facing README, merge to main, organizers' submission flow) before 1 Sep 12:00 noon.
 
 ## 29 Aug 2026 — cross-track harness finding folded in (from Track 3's post-mortem); report framing corrected
