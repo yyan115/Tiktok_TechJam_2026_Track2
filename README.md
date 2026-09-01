@@ -62,7 +62,6 @@ once against the test labels.
 ## Submission artifacts
 
 - [Detailed run report](Project/REPORT.md)
-- [Ready-to-paste Devpost description](DEVPOST_SUBMISSION.md)
 - [Convergence and override disclosure](Project/CONVERGENCE_DISCLOSURE.md)
 - [Machine-written JSONL journal](Project/results/JOURNAL.jsonl)
 - [Final checker-validated submission CSV](Project/results/final_submission_test.csv)
