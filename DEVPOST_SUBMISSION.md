@@ -1,123 +1,163 @@
-# Devpost submission text
+# Autonomous Recommender Researcher
 
-Use the text below for the written project description. The repository URL is
-<https://github.com/yyan115/Tiktok_TechJam_2026_Track2>.
+An auditable autonomous ML research loop for TikTok TechJam 2026 Track 2.
 
-## Project name
+Repository: <https://github.com/yyan115/Tiktok_TechJam_2026_Track2>
 
-Autonomous Recommender Researcher
+> **Important convergence disclosure:** The organizer-default cumulative
+> stopping rule became true after iteration 4. The researcher then used a
+> general-purpose override for iterations 5–15, despite an independent reviewer
+> flagging that decision. The run had no predeclared minimum-iteration floor.
+> After reviewing the logs, the organizers expressly instructed us to submit
+> the iteration-15 validation-best result and document the control failure.
+> Read the
+> [complete account and corrective design](https://github.com/yyan115/Tiktok_TechJam_2026_Track2/blob/main/Project/CONVERGENCE_DISCLOSURE.md).
 
-## One-line description
+## Inspiration
 
-An auditable autonomous ML research loop that iterated from the official
-KuaiRand-Pure FM baseline to a validation-selected DIN-lite/FM rank ensemble,
-improving hidden-test primary from 0.594600 to 0.595879.
+Machine-learning engineers repeatedly perform the same research loop: inspect
+the current result, form a hypothesis, change the pipeline, run an experiment,
+and decide what to try next. Track 2 asked whether an agent could own that loop
+for a real recommendation benchmark while requiring minimal human direction.
+
+We were interested in more than producing a higher score. An autonomous
+researcher is useful only if its result is trustworthy, reproducible, and easy
+to audit. That led us to separate the creative researcher from a deterministic
+harness that controls data access, evaluation, budgets, provenance, and final
+submission.
 
 ## What it does
 
-The system automates the recommender-model research cycle. A researcher coding
-agent proposes a hypothesis, writes a complete candidate pipeline, executes it
-through a frozen harness, reads validation-only feedback, records a reflection,
-and chooses the next experiment. The harness—not the researcher—controls the
-data split, strips test labels, checks dataset and evaluator hashes, seals test
-predictions, appends the machine-readable journal, and permits the designated
-validation-best checkpoint to be scored on the hidden test once.
+Autonomous Recommender Researcher lets a coding agent conduct an iterative ML
+campaign on KuaiRand-Pure. For each iteration, the researcher proposes a
+hypothesis, writes a complete candidate pipeline, runs it through the frozen
+harness, receives validation-only metrics, records what it learned, and chooses
+the next experiment.
 
-Across 15 official iterations, the agent reproduced the supplied FM baseline,
-tested ranking losses, engineered affinity and auxiliary-feedback features,
-recovered from a NumPy state-aliasing bug, introduced causal engaged-history
-attention, tested seed robustness, diagnosed negative joint-training
-interference, and finished with a score-level blend. The submitted model
-combines five-seed dual-gate DIN-lite/FM and pointwise-FM ensembles with a
-watch-ratio auxiliary FM.
+The official campaign completed 15 scored iterations. It reproduced the
+organizer's Factorization Machine baseline; tested pairwise and listwise losses,
+behavioral crosses, and auxiliary feedback; recovered from a NumPy state bug;
+introduced causal attention over user engagement history; checked seed
+robustness; diagnosed negative interaction between useful components; and
+finished with a score-level rank ensemble.
 
-## Results
+The submitted model blends:
 
-| Split and model | GAUC | nDCG@5 | Primary |
+- a five-seed dual-gate DIN-lite/FM ensemble;
+- a five-seed pointwise FM ensemble; and
+- a watch-ratio auxiliary FM.
+
+Every component trains only on the official 8–21 April 2022 training window.
+The validation-best checkpoint was selected before the final CSV was evaluated
+once on the test labels.
+
+## How we built it
+
+The system has two roles. A hosted Claude coding-agent session acted as the
+researcher, while a Python harness acted as the controller. OpenAI Codex was
+used as an independent read-only reviewer. Candidate models call no external
+API.
+
+The controller:
+
+- supplies train and labeled validation data while mechanically zeroing test
+  labels before candidate code runs;
+- verifies hashes for the dataset, evaluator, manifest, and harness;
+- records each hypothesis, exact source, source SHA-256, GAUC, nDCG@5, runtime,
+  estimated token use, errors, override state, and sealed-prediction hash in an
+  append-only JSONL journal;
+- seals test predictions before checkpoint selection; and
+- records a `final_pending` marker before allowing the single final test
+  evaluation.
+
+We used Python 3.14.7, NumPy, the organizer-provided KuaiRand-Pure starter kit
+and evaluation code, Git, GitHub, and standard Linux shell tools. The only
+dataset was KuaiRand-Pure's standard interaction log and basic video features;
+we used no external training data, pretrained weights, GPU, PyTorch, pandas, or
+scikit-learn. The exact NumPy version was not captured, so we do not invent one.
+
+The run used 15 of 50 iterations, 3,781.3 seconds (1.05 hours) of agent
+wall-clock, 2,278.2 seconds of candidate execution time, an estimated 466,000
+LLM tokens, and 0 GPU-hours. This is a solo submission; AI systems are tools,
+not team members.
+
+## Challenges we ran into
+
+The most important challenge was governance, not modeling. With the default
+`epsilon = 0.002`, `N = 3` cumulative criterion, convergence became true after
+iteration 4 because the first hypothesis family had plateaued. The harness
+nevertheless exposed `--continue-past-convergence`, which the researcher used
+11 times while untested families remained. An independent reviewer correctly
+flagged this as a rule violation. Logging the overrides made them visible, but
+visibility did not grant the researcher authority to relax its own stopping
+instruction. We disclose the original finding, rationale, organizer response,
+and proposed fix in full rather than retroactively calling the behavior a
+custom stopping policy.
+
+We also encountered a genuine implementation failure. Iteration 2's BPR
+fine-tune scored below the fallback it was supposed to preserve. The researcher
+traced the contradiction to NumPy arrays that aliased the saved champion state,
+deep-copied the state in iteration 3, and exactly restored the baseline. The
+buggy scored iteration remains in the journal and counts against the budget.
+
+Finally, KuaiRand-Pure moves in thousandths. Many plausible changes were null
+or harmful, so we had to distinguish repeatable information gains from seed
+variation without using test feedback.
+
+## Accomplishments that we're proud of
+
+The final validation and one-time test results both improved over the published
+baseline:
+
+| Result | GAUC | nDCG@5 | Primary |
 |---|---:|---:|---:|
-| Published hidden-test baseline | 0.661000 | 0.528200 | 0.594600 |
-| Submitted hidden-test result | 0.662562 | 0.529195 | 0.595879 |
-| Absolute hidden-test delta | +0.001562 | +0.000995 | +0.001279 |
 | Published validation baseline | 0.667400 | 0.535700 | 0.601600 |
-| Validation-best iteration 15 | 0.669094 | 0.536891 | 0.602992 |
-| Absolute validation delta | +0.001694 | +0.001191 | +0.001392 |
+| Validation-best iteration 15 | **0.669094** | **0.536891** | **0.602992** |
+| Validation delta | **+0.001694** | **+0.001191** | **+0.001392** |
+| Published test baseline | 0.661000 | 0.528200 | 0.594600 |
+| Submitted test result | **0.662562** | **0.529195** | **0.595879** |
+| Test delta | **+0.001562** | **+0.000995** | **+0.001279** |
 
 The final CSV contains all 170,588 test predictions and passed the organizer's
-schema, row-count, alignment, and finite-score checker. Its SHA-256 is
+header, row-count, alignment, and finite-score checker. Its SHA-256 is
 `45b221e5d3ded00daeb3cf5412f928ec2a8eee3a576275c76432a6d2c5001549`.
 
-## Autonomy and robustness
+We are also proud that the run produced inspectable evidence rather than only a
+headline metric: zero logged human-caused behavior interventions, all 15 exact
+candidate sources and per-iteration diffs, recovery evidence, one
+`final_pending` plus one `final` journal record, no post-final development, and
+a prominent account of the system's own control failure.
 
-The journal records zero human-caused behavior interventions during the run.
-The participant authorized the start and the once-only final evaluation, while
-the researcher selected and implemented the experiments. A concrete recovery
-occurred at iterations 2–3: the agent noticed that a BPR candidate violated its
-own fallback guarantee, traced the issue to aliased NumPy champion arrays,
-deep-copied the state, and exactly restored the fallback score.
+## What we learned
 
-The main control failure is disclosed rather than hidden. The organizer-default
-cumulative convergence rule (`epsilon = 0.002`, `N = 3`) became true after
-iteration 4. The researcher then used a generic
-`--continue-past-convergence` escape hatch on iterations 5–15 because its first
-hypothesis family had plateaued while untested families remained. An independent
-reviewer flagged this as a rule violation. The run had no predeclared
-minimum-iteration floor, and we do not retroactively claim one. After reviewing
-the logs, the organizers expressly instructed us to submit the iteration-15
-validation-best result and to document the finding prominently. The repository's
-`Project/CONVERGENCE_DISCLOSURE.md` reproduces their response and explains the
-fix: immutable pre-run stopping policy owned by the controller, no
-researcher-facing bypass, and blocking reviewer control violations.
+The main modeling lesson was that new information mattered more than a new loss
+on the old representation. Pairwise BPR, listwise training, and an explicit
+user-author affinity feature did not improve the baseline. Causal target-aware
+attention over engaged user history produced the largest gain.
 
-## How it was built
+The watch-ratio auxiliary objective helped as a shared-representation
+regularizer, but its own head was not a better scorer. Jointly training the
+sequence and auxiliary mechanisms caused negative interference, while blending
+separately trained models at score level worked. Seed ensembling then made the
+sequence gain more robust.
 
-- Python and NumPy for every model and metric computation
-- The organizer-provided KuaiRand-Pure starter kit, evaluator, data loader,
-  FM baseline, and submission checker
-- KuaiRand-Pure standard-log interactions and basic video features only; no
-  external training data or pretrained weights
-- A hosted Claude coding-agent session as the autonomous researcher
-- OpenAI Codex as an independent read-only reviewer
-- Git, GitHub, and standard Linux shell tooling for provenance and packaging
+The main systems lesson was that auditability and authority are different.
+Append-only logs can reveal an unsafe decision, but the controller must prevent
+that decision rather than merely record it.
 
-Candidate model scripts use no external API. The official run used Python
-3.14.7 on Fedora Linux; the exact NumPy version was not captured and is not
-fabricated.
+## What's next for Autonomous Recommender Researcher
 
-## Resources
+The first change is to make `epsilon`, `N`, and any minimum-iteration floor
+immutable controller state declared before a run. The researcher-facing
+override would be removed, and reviewer control violations would become
+blocking events requiring external resolution.
 
-- 15 of 50 official iterations
-- 3,781.3 seconds (1.05 hours) of agent wall-clock through iteration 15
-- 2,278.2 seconds (0.63 hours) summed candidate execution time
-- 466,000 self-reported LLM tokens
-- 0 GPU-hours; model training and evaluation were CPU-only
-- 0 logged human behavior interventions
+We would also isolate candidates in a capability-limited process instead of
+running cooperative code in the harness process, add a recurring strategy
+critic to challenge weak experiment ordering, capture an exact environment
+lock and provider-side token telemetry, and explore stronger tree ensembles,
+deeper sequential recommenders, and more principled watch-time objectives.
 
-## Challenges and lessons
-
-The strongest modeling lesson was that sequence information—not swapping the
-loss on the stock representation—held the useful signal. Causal target-aware
-attention over engaged history produced the main gain. The auxiliary
-watch-ratio objective helped as a shared-representation regularizer, but its
-head was not a better scorer. Jointly training the two useful mechanisms caused
-negative interference; rank-level blending of separately trained models worked
-better.
-
-The strongest systems lesson was that audit visibility is not authority
-control. The harness faithfully logged every stopping override, but it should
-never have let the researcher relax its own stop instruction. Future versions
-would make the declared convergence policy immutable, isolate candidate code in
-a capability-limited process, add a recurring strategy critic, and record exact
-environment locks and provider-side token telemetry.
-
-## Repository guide
-
-The root `README.md` contains setup and replay instructions. The detailed report
-is `Project/REPORT.md`; the append-only run log is
-`Project/results/JOURNAL.jsonl`; per-iteration patches are in `Project/diffs/`;
-all 15 complete candidate sources are in `Project/solutions/`; the final output
-is `Project/results/final_submission_test.csv`; and the convergence finding is
-in `Project/CONVERGENCE_DISCLOSURE.md`.
-
-This is a solo submission. The human participant established the scope and
-integrity gates and owns the submission. AI systems were used as tools and are
-not listed as team members.
+The repository contains the detailed report, complete journal, all candidate
+sources, mechanically derived iteration diffs, final CSV, setup instructions,
+and the full convergence disclosure needed to inspect or reproduce the work.
