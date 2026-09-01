@@ -56,7 +56,7 @@ action that changed campaign state was the final deadline abort.
 | Candidate code shared too much trust with evaluation | Bubblewrap isolated every candidate without network, hidden labels, evaluator state, ledger, or stopping authority | Both candidate failures were recorded safely and returned bounded diagnostics for autonomous repair |
 | A plausible artifact could differ from the scored artifact | The controller alone scored validation, hashed immutable snapshots, and reran inference from the frozen checkpoint before accepting a result | All 11 scored attempts passed checkpoint replay; attempt 13 reproduced the exact prediction hash |
 | Brittle gates could require constant owner help | The supervisor reconstructed ledger state, retried model infrastructure, preserved the incumbent on null ideas, and continued from failures | The agent recovered two different errors; critic downtime on attempts 11–12 did not deadlock the run |
-| The hardened fork had crippled the ML researcher | The sandbox exposed a frozen, capable CPU stack—LightGBM, Polars, SciPy, scikit-learn and threaded execution—while keeping authority narrow | The campaign processed millions of rows and moved through ranking, pointwise, causal-history, personalization, and ensemble families |
+| Security must not remove essential ML capability | The sandbox exposed a frozen, capable CPU stack—LightGBM, Polars, SciPy, scikit-learn and threaded execution—while keeping authority narrow | The campaign processed millions of rows and moved through ranking, pointwise, causal-history, personalization, and ensemble families |
 
 The trajectory was nevertheless promising. The agent recovered from two early
 candidate errors and raised validation primary from `0.451936` on its first
