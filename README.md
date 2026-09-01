@@ -2,8 +2,7 @@
 
 This branch is a small autonomous ML harness for the 1K benchmark. It is designed
 to make the researcher capable without giving it control of scores, stopping, or
-hidden labels. The real campaign has not started and this repository contains no
-claimed 1K score yet.
+hidden labels.
 
 ## Architecture
 
