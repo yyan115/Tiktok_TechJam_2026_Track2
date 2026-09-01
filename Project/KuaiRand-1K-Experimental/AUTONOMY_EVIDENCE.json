@@ -1,0 +1,39 @@
+{
+  "scope": "sanitized aggregate of local agent trace envelopes",
+  "campaign_status": "externally_aborted_at_submission_deadline",
+  "human_scientific_interventions": 0,
+  "participant_scientific_actions": [],
+  "claim_basis": {
+    "termination_reason": "participant attestation; controller state independently records terminal=null below the frozen floor with wall and attempt caps unconsumed",
+    "human_scientific_interventions": "participant attestation corroborated by the fixed supervisor prompts, 13 immutable agent-written proposals, and controller event history",
+    "agent_call_counts": "derived from 24 local trace envelopes before raw trace bodies were excluded from Git"
+  },
+  "researcher": {
+    "model": "gpt-5.6-sol",
+    "reasoning_effort": "max",
+    "calls": 15,
+    "successful_calls": 15,
+    "phases": {
+      "eda_request": 1,
+      "research_plan": 1,
+      "candidate_generation": 13
+    },
+    "summed_call_wall_seconds": 8335.111845055013
+  },
+  "critic": {
+    "model": "opus",
+    "reasoning_effort": "max",
+    "calls": 9,
+    "successful_calls": 5,
+    "provider_or_agent_errors": 4,
+    "summed_call_wall_seconds": 1831.870152385989
+  },
+  "campaign_controller": {
+    "attempts": 13,
+    "scored_iterations": 11,
+    "candidate_errors": 2,
+    "terminal_event": false,
+    "hidden_test_scored": false
+  },
+  "sanitization": "Raw trace bodies are excluded because they contain provider/session metadata and repeated embedded source. This aggregate retains only role, declared model, effort, status, phase counts, and wall time from the 24 trace envelopes."
+}

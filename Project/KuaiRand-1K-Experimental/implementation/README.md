@@ -1,5 +1,13 @@
 # TikTok TechJam Track 2 — KuaiRand-1K
 
+> [!NOTE]
+> **Post-run archive status:** this is the implementation snapshot frozen before
+> the campaign. The autonomous research loop subsequently ran for 13 attempts / 11
+> scored iterations and was externally aborted when the submission deadline
+> arrived, before its frozen 15-scored-iteration floor. It never opened hidden
+> test. See the [campaign evidence report](../README.md). References below to a
+> campaign that “has not started” describe the moment this code was frozen.
+
 This branch is a small autonomous ML harness for the 1K benchmark. It is designed
 to make the researcher capable without giving it control of scores, stopping, or
 hidden labels. The real campaign has not started and this repository contains no

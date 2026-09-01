@@ -1,6 +1,11 @@
 {
   "benchmark_id": "kuairand-1k",
   "campaign_status": "aborted_externally_before_terminal",
+  "termination_reason": "submission_deadline",
+  "termination_reason_basis": "participant_attestation; controller state independently records a nonterminal run below its frozen floor",
+  "autonomy_scope": "fully_autonomous_scientific_research_loop",
+  "human_scientific_interventions": 0,
+  "autonomy_basis": "participant attestation corroborated by the supervisor design, 24 sanitized agent-call envelopes, immutable proposals, and controller events",
   "official_submission": false,
   "hidden_test_scored": false,
   "attempts": 13,
@@ -23,7 +28,8 @@
   "implementation_commit": "34048e5013111e30b44db227f7dec8abd634a674",
   "notes": [
     "Validation metrics only; no official KuaiRand-1K baseline was supplied.",
-    "The run was externally stopped before its frozen 15-scored-iteration floor.",
+    "The autonomous research loop was externally aborted at the submission deadline before its frozen 15-scored-iteration floor.",
+    "The participant did not steer models, features, candidate code, or experiment selection during the active campaign.",
     "No run_terminal or final_scored event exists and hidden labels were never opened."
   ]
 }

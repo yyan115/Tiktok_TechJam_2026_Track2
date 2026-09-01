@@ -26,13 +26,37 @@ interventions.
 > and corrective design are documented in
 > [CONVERGENCE_DISCLOSURE.md](Project/CONVERGENCE_DISCLOSURE.md).
 
-## Secondary KuaiRand-1K experiment — aborted, validation only
+## Secondary KuaiRand-1K experiment — autonomous loop, deadline-aborted
 
 After completing the official Pure submission, we built a redesigned vNext
-harness and started a separate KuaiRand-1K campaign. It was externally stopped
-after **13 attempts / 11 scored iterations**, before its frozen minimum of 15
-scored iterations. It did not reach a controller terminal state, hidden test was never
-opened, and no 1K submission artifact was produced.
+harness and started a separate KuaiRand-1K campaign. The ML research loop ran
+autonomously until the submission deadline forced an external abort after **13
+attempts / 11 scored iterations**, before its frozen minimum of 15 scored
+iterations. It did not reach a controller terminal state, the hidden test was
+never opened, and no 1K submission artifact was produced.
+
+### What was autonomous
+
+After launch, the GPT-5.6 Sol researcher independently inspected the task,
+requested controlled EDA, conducted source-grounded research, wrote the research
+portfolio, proposed and implemented every candidate, interpreted each result,
+responded to Claude Opus 5 criticism, and chose whether to debug, refine, branch,
+or retain the incumbent. The participant did not select models or features,
+edit candidates, approve individual experiments, or redirect the scientific
+search. Status questions did not alter the loop. Codex supervised process health
+and trusted-state recovery without choosing the ML work; the only participant
+action that changed campaign state was the final deadline abort.
+
+### Why the vNext harness was materially better
+
+| Lesson from the Pure run | vNext mechanism | Evidence during the 1K campaign |
+|---|---|---|
+| Research could be skimmed or ignored | EDA and web/source research were mandatory phases; a structured plan had to connect evidence to candidate choices and survive independent criticism | Preserved EDA, accepted plan, sources, and critic response preceded attempt 1 |
+| The score-seeking researcher could override convergence | Benchmark, epsilon, scored window, minimum floor, caps, and final-selection rule were frozen before launch; no continuation command existed | The run remained nonterminal below the 15-scored floor and was never reopened or silently finalized |
+| Candidate code shared too much trust with evaluation | Bubblewrap isolated every candidate without network, hidden labels, evaluator state, ledger, or stopping authority | Both candidate failures were recorded safely and returned bounded diagnostics for autonomous repair |
+| A plausible artifact could differ from the scored artifact | The controller alone scored validation, hashed immutable snapshots, and reran inference from the frozen checkpoint before accepting a result | All 11 scored attempts passed checkpoint replay; attempt 13 reproduced the exact prediction hash |
+| Brittle gates could require constant owner help | The supervisor reconstructed ledger state, retried model infrastructure, preserved the incumbent on null ideas, and continued from failures | The agent recovered two different errors; critic downtime on attempts 11–12 did not deadlock the run |
+| The hardened fork had crippled the ML researcher | The sandbox exposed a frozen, capable CPU stack—LightGBM, Polars, SciPy, scikit-learn and threaded execution—while keeping authority narrow | The campaign processed millions of rows and moved through ranking, pointwise, causal-history, personalization, and ensemble families |
 
 The trajectory was nevertheless promising. The agent recovered from two early
 candidate errors and raised validation primary from `0.451936` on its first
@@ -47,29 +71,39 @@ These are **controller-measured validation metrics only**. The supplied
 materials contained no official 1K baseline, so we claim neither a baseline
 improvement nor hidden generalization.
 
-The vNext harness directly addressed the Pure post-mortem: it enforced a frozen
-no-override stop policy, logged EDA and source-grounded planning, separated the
-GPT-5.6 Sol researcher from a Claude Opus 5 critic, ran candidate code in a
-network-isolated Bubblewrap sandbox, kept hidden labels and controller state out
-of that sandbox, and required exact checkpoint replay before accepting a score.
-It also demonstrated useful navigation behavior: fixing two distinct failures,
-abandoning negative branches, simplifying an overfit feature bundle, and using
-an internal gate to reject an unsupported model without displacing the incumbent.
+The navigation behavior was substantive rather than ceremonial: the researcher
+fixed two distinct initial failures, abandoned a harmful weighting branch,
+removed an overfit sparse-feature bundle, followed the causal-session signal,
+discovered target-free user-context personalization, and let an internal gate
+assign an unsupported fourth model zero weight instead of manufacturing a gain.
 
-This campaign was not fully autonomous end to end. A separate local process
-switched the shared Git branch after attempt 6, requiring a verified
-infrastructure recovery, and the participant later stopped the campaign after
-attempt 13. A temporary critic quota outage on attempts 11–12 was recorded and
-handled by deterministic checks; critic review resumed for attempt 13.
+An unrelated shared-worktree switch briefly interrupted orchestration between
+attempts 6 and 7. The supervising Codex session restored the frozen branch,
+verified the authority hashes and ledger, and continued with the already
+agent-written candidate; no attempt, score, prompt, or scientific decision
+changed. A temporary critic quota outage on attempts 11–12 was recorded and
+handled by the controller's deterministic checks; critic review resumed for
+attempt 13. Neither event introduced participant-directed ML decisions.
 
 The compact evidence package—including the complete event ledger, EDA and
 research records, critic findings, frozen policy, exact best candidate,
-checkpoint diagnostics, and vNext harness—is in
+checkpoint diagnostics, a sanitized
+[`AUTONOMY_EVIDENCE.json`](Project/KuaiRand-1K-Experimental/AUTONOMY_EVIDENCE.json),
+and the vNext harness—is in
 [`Project/KuaiRand-1K-Experimental/`](Project/KuaiRand-1K-Experimental/README.md).
 Its development history remains on
 [`track2-1k-vnext`](https://github.com/yyan115/Tiktok_TechJam_2026_Track2/tree/track2-1k-vnext).
 
-## Results
+Verify the compact evidence package:
+
+```bash
+cd Project/KuaiRand-1K-Experimental
+sha256sum -c MANIFEST.sha256
+jq '.controller | {attempts, scored_iterations, best_attempt, best_primary, final_scored, terminal}' \
+  campaign/evidence/STATE.json
+```
+
+## Official KuaiRand-Pure results
 
 ### Hidden test — evaluated once
 
@@ -102,7 +136,7 @@ Every component trained only on the official training window, 8–21 April 2022.
 Validation selected the checkpoint and blend; the final CSV was then evaluated
 once against the test labels.
 
-## Submission artifacts
+## Submission and experimental evidence
 
 - [Detailed run report](Project/REPORT.md)
 - [Convergence and override disclosure](Project/CONVERGENCE_DISCLOSURE.md)
@@ -123,7 +157,7 @@ Final artifact identity:
 | CSV rows, excluding header | `170,588` |
 | CSV SHA-256 | `45b221e5d3ded00daeb3cf5412f928ec2a8eee3a576275c76432a6d2c5001549` |
 
-## How the system works
+## How the Pure submission system worked
 
 ```text
 Human start authorization
@@ -190,7 +224,7 @@ shorthand estimates and defenses—including the stale `~471k` token estimate—
 are superseded by the journal-derived figures and convergence disclosure in
 this README.
 
-## Autonomy and robustness
+## Pure submission: autonomy and robustness
 
 - **Human behavior interventions: 0.** The participant authorized the start and
   the once-only final, but did not redirect candidate behavior during the run.
@@ -207,7 +241,7 @@ this README.
 - **Final discipline:** no development runs occurred after finalization, and
   the journal contains exactly one `final_pending` and one `final` record.
 
-## Resource use
+## Pure submission: resource use
 
 | Resource | Recorded use |
 |---|---:|
@@ -223,7 +257,7 @@ telemetry was not available inside the agent session. Model training and
 evaluation were local and CPU-only; the researcher and auditor were hosted
 coding-agent services.
 
-## Tools, libraries, APIs, and data
+## Pure submission: tools, libraries, APIs, and data
 
 - Python 3.14.7 on Fedora Linux for the recorded run;
 - NumPy for every benchmark model and metric computation;
@@ -238,7 +272,7 @@ Candidate model scripts call no external API and use no external training data
 or pretrained weights. The exact NumPy package version was not captured in the
 official journal, so it is intentionally not fabricated here.
 
-## Setup
+## Reproduce the Pure submission
 
 Python 3.9+ and NumPy are sufficient. The recorded run used Python 3.14.7.
 
@@ -266,7 +300,7 @@ dates are zeroed while training and validation remain unchanged. `check`
 verifies the organizer files plus raw and sanitized dataset hashes against
 `Project/manifest.json`.
 
-## Inspect and reproduce
+## Inspect the Pure submission
 
 Render a compact view of the preserved official journal:
 
@@ -318,8 +352,8 @@ the once-only final has already been consumed.
    capability-limited process.
 5. LLM token use is estimated, and the exact NumPy version was not recorded.
 6. The later KuaiRand-1K campaign is validation-only and incomplete: it stopped
-   at 11 scored iterations, below its frozen floor of 15, and never accessed the
-   hidden test.
+   at the submission deadline with 11 scored iterations, below its frozen floor
+   of 15, and never accessed the hidden test.
 
 ## Contributions
 

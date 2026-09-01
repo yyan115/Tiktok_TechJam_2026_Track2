@@ -203,41 +203,89 @@ Everything runs on the participant's machine in this competition, so the claim
 - `Project/audits/` — independent verdicts + the 12-round harness review trail
 - `Project/memory/` — the agent's own diary: decisions, lessons, live queue
 
-## 9. Secondary KuaiRand-1K experiment — incomplete addendum
+## 9. Secondary KuaiRand-1K experiment — autonomous loop, deadline-aborted
 
-After the Pure submission, we implemented a redesigned vNext harness intended to
-address its main shortcomings: shallow research, same-process candidate trust,
-and a researcher-controlled stopping override. The new controller froze the
-benchmark and stopping policy before launch, mediated EDA and research evidence,
-ran candidates in a network-isolated Bubblewrap sandbox, kept hidden labels and
-authority state outside that sandbox, separated researcher and critic roles, and
-required checkpoint-only prediction replay before accepting each score.
+After the Pure submission, we implemented a deliberately smaller vNext harness
+around the lessons of both Track 2 and Track 3. The goal was not another layer
+of procedural locks. It was to give the researcher enough ML capability to do
+serious work while making scores, stopping, hidden labels, and final selection
+mechanically unavailable to it.
 
-The campaign was **externally stopped after 13 attempts / 11 scored iterations**,
-before its frozen floor of 15 scored iterations. It has no terminal event, no
-hidden-test evaluation, and no 1K submission artifact. Its best internal
-controller-measured validation result was attempt 13:
+### 9.1 Autonomous scientific loop
+
+After launch, the GPT-5.6 Sol researcher independently:
+
+1. read the task and controlled evidence;
+2. requested and interpreted dataset EDA;
+3. performed web/source research and wrote an evidence-linked portfolio;
+4. answered an independent Claude Opus 5 critic;
+5. proposed and implemented every candidate;
+6. interpreted controller metrics and sanitized failures; and
+7. chose whether to debug, refine, change family, ensemble, or retain the
+   incumbent.
+
+The participant did not select features or models, edit candidate code, approve
+individual attempts, or redirect the scientific trajectory. Status questions
+did not change the loop. Codex supervised lifecycle and trusted-state recovery,
+not ML choices. The only participant action that changed campaign state was the
+external abort when the submission deadline arrived.
+
+### 9.2 Corrective harness design
+
+| Prior failure mode | vNext mechanism | Evidence that it operated |
+|---|---|---|
+| Research was easy to skim and disconnect from code | EDA and research were controller phases; the plan linked observations and sources to mechanisms and faced an independent critic before experimentation | EDA output, accepted plan, sources, and critic findings are preserved |
+| Researcher-owned prose could override stopping | The benchmark, epsilon, scored window, 15-scored minimum, caps, and earliest-best rule were frozen before launch; no continuation interface existed | At 11 scored iterations the ledger remained nonterminal; nothing silently bypassed the floor |
+| Same-process candidates weakened the security claim | Every candidate ran under Bubblewrap without network, hidden labels, controller files, ledger, or stopping authority | Errors remained contained and produced bounded diagnostics rather than corrupting authority state |
+| Security hardening had crippled the ML runtime | The candidate received a frozen threaded CPU environment with LightGBM, Polars, SciPy, and scikit-learn, plus persistent checkpoints | The agent trained ranking, pointwise, contextual, causal-history, personalization, and ensemble models over millions of rows |
+| Auditing honesty did not audit intelligence | A separate critic challenged research and candidates; only objective integrity findings could hard-block, so strategic objections informed rather than deadlocked search | Criticism changed plans, while the controller continued safely through a temporary critic outage |
+| Reported numbers could drift from shipped code | Controller-only scoring, immutable attempt snapshots, append-only fsynced events, and mandatory frozen-checkpoint replay bound every accepted result | All 11 scored attempts passed replay; attempt 13's original and replay predictions have the identical SHA-256 |
+| Failures or null ideas could strand the campaign | The supervisor resumed from ledger state, failures counted against hard caps but not the scored convergence window, and the incumbent survived rejected/null children | Two initial failures were repaired; attempt 12 correctly retained attempt 11 instead of claiming a false gain |
+
+This structure kept authority deterministic without asking the auditor to choose
+the science. The researcher proposed; the critic challenged; the controller
+authorized, executed, measured, and recorded.
+
+### 9.3 Measured trajectory and navigation
+
+The autonomous loop encountered and navigated real problems:
+
+- attempt 1 discovered that a target-defining field was unavailable at
+  inference and abandoned the unexecutable family;
+- attempt 2 hit LightGBM's query-size limit, then attempt 3 repaired it with
+  audited within-user chunking;
+- attempt 5's user-balanced weighting was strongly negative and was abandoned;
+- attempt 6 removed a sparse, overfit feature bundle and produced a large gain;
+- attempts 7–10 built strictly backward session state and internally selected
+  ensemble behavior;
+- attempt 11 found target-free user-by-context personalization;
+- attempt 12's internal gate assigned unsupported additions zero weight and
+  reproduced the incumbent exactly; and
+- attempt 13 added ordered causal session history and became validation-best.
+
+The campaign was **externally aborted for lack of submission time after 13
+attempts / 11 scored iterations**, before its frozen floor of 15 scored
+iterations. It has no terminal event, no hidden-test evaluation, and no 1K
+submission artifact. Its best controller-measured validation result was attempt
+13:
 
 | GAUC | nDCG@5 | primary |
 |---:|---:|---:|
 | 0.6909917 | 0.6569252 | **0.6739584** |
 
 The supplied materials did not provide an official 1K baseline, so this is not
-presented as a baseline improvement. It is evidence of a promising trajectory
-and improved control design only.
+presented as a baseline improvement. It is validation-only evidence of a strong
+trajectory, autonomous problem navigation, and a materially improved harness.
 
-The autonomy trail includes two early candidate errors followed by autonomous
-repair, rejection of a harmful user-balanced loss, a major gain from removing
-the sparse feature bundle, gains from strictly backward session state and
-target-free user-context personalization, and a correctly gated null experiment
-that retained the incumbent exactly. It also includes two disclosed external
-limitations: a shared-worktree branch switch required verified human
-infrastructure recovery after attempt 6, and the participant later stopped the
-campaign after attempt 13. A temporary critic quota outage on attempts 11–12 was
-recorded and handled by deterministic checks; critic review resumed for attempt
-13.
+An unrelated shared-worktree switch briefly interrupted orchestration between
+attempts 6 and 7. The supervising Codex session restored the frozen branch,
+verified the authority hashes and ledger, and continued with the already
+agent-written candidate; no attempt, score, prompt, or scientific decision
+changed. A temporary critic quota outage on attempts 11–12 was logged and
+handled through deterministic controller checks; critic review resumed for
+attempt 13. Neither event introduced participant-directed ML decisions.
 
 The compact controller ledger, research and EDA evidence, critic findings,
-attempt-13 source and diagnostics, and complete vNext implementation are
-preserved in
+sanitized [`AUTONOMY_EVIDENCE.json`](KuaiRand-1K-Experimental/AUTONOMY_EVIDENCE.json),
+attempt-13 source and diagnostics, and complete vNext implementation are preserved in
 [`Project/KuaiRand-1K-Experimental/`](KuaiRand-1K-Experimental/README.md).
