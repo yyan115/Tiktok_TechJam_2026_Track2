@@ -1,0 +1,104 @@
+{
+  "base_member_prediction_max": 0.7996652126312256,
+  "base_member_prediction_min": 0.0027493746019899845,
+  "base_weight": 0.015625,
+  "ensemble_method": "within_user_average_tie_percentile_rank",
+  "joint_member_prediction_max": 0.9248014092445374,
+  "joint_member_prediction_min": 0.010277053341269493,
+  "joint_weight": 0.875,
+  "mean_absolute_member_rank_difference": 0.07545550167560577,
+  "mean_absolute_personalized_joint_rank_difference": 0.07167145609855652,
+  "mean_absolute_proxy_personalized_rank_difference": 0.10636614263057709,
+  "personalized_member_prediction_max": 0.9255269169807434,
+  "personalized_member_prediction_min": 0.0072732949629426,
+  "personalized_weight": 0.109375,
+  "prediction_dtype": "float32",
+  "prediction_max": 1.0,
+  "prediction_mean": 0.5,
+  "prediction_min": 0.0,
+  "proxy_member_prediction_max": 0.8171704411506653,
+  "proxy_member_prediction_min": 0.0018226297106593847,
+  "proxy_weight": 0.0,
+  "rows": 2524980,
+  "schema": {
+    "evaluation_features": {
+      "all_columns": [
+        "row_id",
+        "user_id",
+        "video_id",
+        "date",
+        "hourmin",
+        "time_ms",
+        "duration_ms",
+        "is_rand",
+        "tab"
+      ],
+      "path_name": "evaluation_features.parquet",
+      "required_fields": {
+        "date": {
+          "dtype": "int64",
+          "null_count_from_statistics": 0
+        },
+        "duration_ms": {
+          "dtype": "int64",
+          "null_count_from_statistics": 0
+        },
+        "hourmin": {
+          "dtype": "int64",
+          "null_count_from_statistics": 0
+        },
+        "is_rand": {
+          "dtype": "int64",
+          "null_count_from_statistics": 0
+        },
+        "tab": {
+          "dtype": "int64",
+          "null_count_from_statistics": 0
+        },
+        "time_ms": {
+          "dtype": "int64",
+          "null_count_from_statistics": 0
+        },
+        "user_id": {
+          "dtype": "int64",
+          "null_count_from_statistics": 0
+        }
+      },
+      "rows": 2524980
+    }
+  },
+  "sequence": {
+    "nonempty_recent4_proxy_pattern_fraction": 0.984680670737986,
+    "nonneutral_proxy_streak_fraction": 0.9141034780473508,
+    "nonzero_proxy_observation_fraction": 0.9861872173244937,
+    "nonzero_session_position_fraction": 0.9869892038748822,
+    "positive_session_elapsed_fraction": 0.9365214773978408,
+    "previous_tab_available_fraction": 0.9869892038748822,
+    "proxy_observation_count_p50": 73.0,
+    "proxy_observation_count_p90": 397.0,
+    "recent_duration_history_fraction": 0.984680670737986,
+    "rows": 2524980,
+    "session_position_max": 4169,
+    "session_position_p50": 79.0,
+    "session_position_p90": 433.0,
+    "session_start_fraction": 0.013010796125117822,
+    "valid_previous_gap_fraction": 0.999612670199368,
+    "valid_previous_gap_ms_p50": 0.0,
+    "valid_previous_gap_ms_p90": 61372.0,
+    "valid_previous_proxy_exact_margin_fraction": 4.332581052843191e-07,
+    "valid_previous_proxy_fraction": 0.9141034780473508,
+    "valid_previous_proxy_given_within_session_fraction": 0.9261534720527999,
+    "valid_previous_proxy_positive_rate": 0.13964731923713647
+  },
+  "source_order_first": 0,
+  "source_order_last": 2524979,
+  "user_vocabulary": {
+    "known_user_row_fraction": 0.9988910803253888,
+    "maximum_user_code": 983,
+    "observed_users": 978,
+    "rows": 2524980,
+    "unknown_user_rows": 2800,
+    "vocabulary_users": 983
+  },
+  "users": 978
+}

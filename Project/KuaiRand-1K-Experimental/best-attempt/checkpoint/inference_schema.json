@@ -1,0 +1,106 @@
+{
+  "evaluation_features": {
+    "all_columns": [
+      "row_id",
+      "user_id",
+      "video_id",
+      "date",
+      "hourmin",
+      "time_ms",
+      "duration_ms",
+      "is_rand",
+      "tab"
+    ],
+    "path_name": "evaluation_features.parquet",
+    "required_fields": {
+      "date": {
+        "dtype": "int64",
+        "null_count_from_statistics": 0
+      },
+      "duration_ms": {
+        "dtype": "int64",
+        "null_count_from_statistics": 0
+      },
+      "hourmin": {
+        "dtype": "int64",
+        "null_count_from_statistics": 0
+      },
+      "is_rand": {
+        "dtype": "int64",
+        "null_count_from_statistics": 0
+      },
+      "tab": {
+        "dtype": "int64",
+        "null_count_from_statistics": 0
+      },
+      "time_ms": {
+        "dtype": "int64",
+        "null_count_from_statistics": 0
+      },
+      "user_id": {
+        "dtype": "int64",
+        "null_count_from_statistics": 0
+      }
+    },
+    "rows": 2524980
+  },
+  "train": {
+    "all_columns": [
+      "user_id",
+      "video_id",
+      "date",
+      "hourmin",
+      "time_ms",
+      "is_click",
+      "is_like",
+      "is_follow",
+      "is_comment",
+      "is_forward",
+      "is_hate",
+      "long_view",
+      "play_time_ms",
+      "duration_ms",
+      "profile_stay_time",
+      "comment_stay_time",
+      "is_profile_enter",
+      "is_rand",
+      "tab"
+    ],
+    "path_name": "train.parquet",
+    "required_fields": {
+      "date": {
+        "dtype": "int64",
+        "null_count_from_statistics": 0
+      },
+      "duration_ms": {
+        "dtype": "int64",
+        "null_count_from_statistics": 0
+      },
+      "hourmin": {
+        "dtype": "int64",
+        "null_count_from_statistics": 0
+      },
+      "is_rand": {
+        "dtype": "int64",
+        "null_count_from_statistics": 0
+      },
+      "long_view": {
+        "dtype": "int64",
+        "null_count_from_statistics": 0
+      },
+      "tab": {
+        "dtype": "int64",
+        "null_count_from_statistics": 0
+      },
+      "time_ms": {
+        "dtype": "int64",
+        "null_count_from_statistics": 0
+      },
+      "user_id": {
+        "dtype": "int64",
+        "null_count_from_statistics": 0
+      }
+    },
+    "rows": 5055984
+  }
+}

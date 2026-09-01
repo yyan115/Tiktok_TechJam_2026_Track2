@@ -1,0 +1,8 @@
+# PyTorch is installed separately so its CUDA build can match the host driver.
+numpy==2.3.5
+pandas==3.0.2
+pyarrow==24.0.0
+scipy==1.17.1
+lightgbm==4.7.0
+polars==1.44.1
+scikit-learn==1.9.0

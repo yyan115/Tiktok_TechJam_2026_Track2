@@ -10,6 +10,11 @@ predictions before any grading, and scored the hidden test exactly once, on the
 designated validation-best artifact. The complete machine journal, exact
 candidate sources, submitted CSV, and their hashes are committed in this repo.
 
+> **Scope:** All headline scores, final-artifact claims, intervention counts,
+> and resource totals in sections 1–8 refer only to the completed
+> **KuaiRand-Pure** submission. A later, aborted KuaiRand-1K experiment is
+> documented separately in section 9 and has no hidden-test result.
+
 ---
 
 ## Critical convergence-control disclosure
@@ -197,3 +202,42 @@ Everything runs on the participant's machine in this competition, so the claim
 - `Project/harness/iterate.py` — the frozen lab bench (v0.5.0, review round 12: YES)
 - `Project/audits/` — independent verdicts + the 12-round harness review trail
 - `Project/memory/` — the agent's own diary: decisions, lessons, live queue
+
+## 9. Secondary KuaiRand-1K experiment — incomplete addendum
+
+After the Pure submission, we implemented a redesigned vNext harness intended to
+address its main shortcomings: shallow research, same-process candidate trust,
+and a researcher-controlled stopping override. The new controller froze the
+benchmark and stopping policy before launch, mediated EDA and research evidence,
+ran candidates in a network-isolated Bubblewrap sandbox, kept hidden labels and
+authority state outside that sandbox, separated researcher and critic roles, and
+required checkpoint-only prediction replay before accepting each score.
+
+The campaign was **externally stopped after 13 attempts / 11 scored iterations**,
+before its frozen floor of 15 scored iterations. It has no terminal event, no
+hidden-test evaluation, and no 1K submission artifact. Its best internal
+controller-measured validation result was attempt 13:
+
+| GAUC | nDCG@5 | primary |
+|---:|---:|---:|
+| 0.6909917 | 0.6569252 | **0.6739584** |
+
+The supplied materials did not provide an official 1K baseline, so this is not
+presented as a baseline improvement. It is evidence of a promising trajectory
+and improved control design only.
+
+The autonomy trail includes two early candidate errors followed by autonomous
+repair, rejection of a harmful user-balanced loss, a major gain from removing
+the sparse feature bundle, gains from strictly backward session state and
+target-free user-context personalization, and a correctly gated null experiment
+that retained the incumbent exactly. It also includes two disclosed external
+limitations: a shared-worktree branch switch required verified human
+infrastructure recovery after attempt 6, and the participant later stopped the
+campaign after attempt 13. A temporary critic quota outage on attempts 11–12 was
+recorded and handled by deterministic checks; critic review resumed for attempt
+13.
+
+The compact controller ledger, research and EDA evidence, critic findings,
+attempt-13 source and diagnostics, and complete vNext implementation are
+preserved in
+[`Project/KuaiRand-1K-Experimental/`](KuaiRand-1K-Experimental/README.md).

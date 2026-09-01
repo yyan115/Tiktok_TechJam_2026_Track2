@@ -1,0 +1,29 @@
+{
+  "benchmark_id": "kuairand-1k",
+  "campaign_status": "aborted_externally_before_terminal",
+  "official_submission": false,
+  "hidden_test_scored": false,
+  "attempts": 13,
+  "scored_iterations": 11,
+  "candidate_errors": 2,
+  "frozen_minimum_scored_iterations": 15,
+  "best_attempt": 13,
+  "best_validation": {
+    "GAUC": 0.6909917126329208,
+    "nDCG@5": 0.6569251681361421,
+    "primary": 0.6739584403845315,
+    "rows": 2524980,
+    "users": 978
+  },
+  "checkpoint_replay": {
+    "status": "ok",
+    "prediction_sha256": "78a120d73da57399886cfbbf27933e9bf0ae4d1dbc327d506755f79f923b3b0e",
+    "checkpoint_manifest_sha256": "1c37c1a674b82ff9e5a6e6e78d342bf0f0083b7ba4d05423c6cbe313508cf222"
+  },
+  "implementation_commit": "34048e5013111e30b44db227f7dec8abd634a674",
+  "notes": [
+    "Validation metrics only; no official KuaiRand-1K baseline was supplied.",
+    "The run was externally stopped before its frozen 15-scored-iteration floor.",
+    "No run_terminal or final_scored event exists and hidden labels were never opened."
+  ]
+}

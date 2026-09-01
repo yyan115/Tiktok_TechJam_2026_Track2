@@ -26,6 +26,49 @@ interventions.
 > and corrective design are documented in
 > [CONVERGENCE_DISCLOSURE.md](Project/CONVERGENCE_DISCLOSURE.md).
 
+## Secondary KuaiRand-1K experiment — aborted, validation only
+
+After completing the official Pure submission, we built a redesigned vNext
+harness and started a separate KuaiRand-1K campaign. It was externally stopped
+after **13 attempts / 11 scored iterations**, before its frozen minimum of 15
+scored iterations. It did not reach a controller terminal state, hidden test was never
+opened, and no 1K submission artifact was produced.
+
+The trajectory was nevertheless promising. The agent recovered from two early
+candidate errors and raised validation primary from `0.451936` on its first
+scored attempt to **`0.673958`** at attempt 13:
+
+| KuaiRand-1K validation checkpoint | GAUC | nDCG@5 | Primary |
+|---|---:|---:|---:|
+| Attempt 11 — target-free user-context personalization | 0.685232 | 0.661519 | 0.673376 |
+| **Attempt 13 — ordered causal session history** | **0.690992** | 0.656925 | **0.673958** |
+
+These are **controller-measured validation metrics only**. The supplied
+materials contained no official 1K baseline, so we claim neither a baseline
+improvement nor hidden generalization.
+
+The vNext harness directly addressed the Pure post-mortem: it enforced a frozen
+no-override stop policy, logged EDA and source-grounded planning, separated the
+GPT-5.6 Sol researcher from a Claude Opus 5 critic, ran candidate code in a
+network-isolated Bubblewrap sandbox, kept hidden labels and controller state out
+of that sandbox, and required exact checkpoint replay before accepting a score.
+It also demonstrated useful navigation behavior: fixing two distinct failures,
+abandoning negative branches, simplifying an overfit feature bundle, and using
+an internal gate to reject an unsupported model without displacing the incumbent.
+
+This campaign was not fully autonomous end to end. A separate local process
+switched the shared Git branch after attempt 6, requiring a verified
+infrastructure recovery, and the participant later stopped the campaign after
+attempt 13. A temporary critic quota outage on attempts 11–12 was recorded and
+handled by deterministic checks; critic review resumed for attempt 13.
+
+The compact evidence package—including the complete event ledger, EDA and
+research records, critic findings, frozen policy, exact best candidate,
+checkpoint diagnostics, and vNext harness—is in
+[`Project/KuaiRand-1K-Experimental/`](Project/KuaiRand-1K-Experimental/README.md).
+Its development history remains on
+[`track2-1k-vnext`](https://github.com/yyan115/Tiktok_TechJam_2026_Track2/tree/track2-1k-vnext).
+
 ## Results
 
 ### Hidden test — evaluated once
@@ -69,6 +112,7 @@ once against the test labels.
 - [All 15 candidate sources](Project/solutions)
 - [Per-iteration code diffs](Project/diffs)
 - [Organizer starter kit](kuairand-starter-kit)
+- [Aborted KuaiRand-1K experimental campaign](Project/KuaiRand-1K-Experimental/README.md)
 
 Final artifact identity:
 
@@ -273,6 +317,9 @@ the once-only final has already been consumed.
    candidate code. A stronger design would execute candidates in a separate,
    capability-limited process.
 5. LLM token use is estimated, and the exact NumPy version was not recorded.
+6. The later KuaiRand-1K campaign is validation-only and incomplete: it stopped
+   at 11 scored iterations, below its frozen floor of 15, and never accessed the
+   hidden test.
 
 ## Contributions
 

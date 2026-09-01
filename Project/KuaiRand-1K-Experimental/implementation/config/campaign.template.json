@@ -1,0 +1,14 @@
+{
+  "benchmark_id": "kuairand-1k",
+  "epsilon": null,
+  "window_scored_iterations": null,
+  "minimum_scored_iterations": null,
+  "max_attempts": 50,
+  "max_wall_seconds": 21600,
+  "candidate_timeout_seconds": 3600,
+  "max_candidate_output_bytes": 2147483648,
+  "selection": "earliest validation-best checkpoint at terminal",
+  "tie_break": "earliest attempt",
+  "failed_attempts_advance_convergence": false,
+  "note": "epsilon, window and minimum must be fixed before start; the controller rejects this template until they are filled"
+}

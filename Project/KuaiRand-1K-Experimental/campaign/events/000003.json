@@ -1,0 +1,1 @@
+{"critic_decision":"accept_with_notes","eda_results":[{"path":"round-001.json","sha256":"00c4cd15a261fc96c0650d08f1514d5be0ca851ddf1396ba17f200eca8e50875"}],"event_id":3,"research_plan_sha256":"5e676705061545d94798a77474dd90065d42716d1979377cb54cc557ede2819b","timestamp_unix":1788210587.101739,"timestamp_utc":"2026-08-31T21:09:47.101739+00:00","type":"research_plan_accepted"}

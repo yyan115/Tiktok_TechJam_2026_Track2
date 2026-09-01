@@ -1,0 +1,50 @@
+{
+  "benchmark_id": "kuairand-1k",
+  "task": "within-user ranking over logged impressions",
+  "label": "long_view",
+  "metrics": ["GAUC", "nDCG@5"],
+  "primary": "mean(GAUC,nDCG@5)",
+  "splits": {
+    "train": [20220408, 20220421],
+    "validation": [20220422, 20220428],
+    "test": [20220429, 20220508]
+  },
+  "hard_limits": {
+    "attempts": 50,
+    "wall_seconds": 21600,
+    "failed_attempts_count": true,
+    "failed_attempts_advance_convergence": false
+  },
+  "raw_files": {
+    "train_log": "log_standard_4_08_to_4_21_1k.csv",
+    "future_log": "log_standard_4_22_to_5_08_1k.csv",
+    "user_features": "user_features_1k.csv",
+    "video_features": "video_features_basic_1k.csv"
+  },
+  "expected_rows": {
+    "train": 5055984,
+    "validation": 2524980,
+    "test": 4132081
+  },
+  "future_feature_columns": [
+    "user_id",
+    "video_id",
+    "date",
+    "hourmin",
+    "time_ms",
+    "duration_ms",
+    "is_rand",
+    "tab"
+  ],
+  "excluded_files": {
+    "log_random_4_22_to_5_08_1k.csv": "overlaps validation and test dates; exclude unless organizers explicitly approve it",
+    "video_features_statistic_1k.csv": "month-aggregated outcomes may contain future leakage; exclude unless provenance is resolved"
+  },
+  "official_1k_baseline": null,
+  "official_1k_baseline_status": "not present in the supplied starter kit",
+  "sources": [
+    "Track-Files/MEETING-NOTES.md",
+    "Track-Files/kuairand-starter-kit.zip",
+    "datasets/KuaiRand-1K/README.md"
+  ]
+}
